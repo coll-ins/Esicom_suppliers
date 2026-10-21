@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*",    "destination": "https://esicom-suppliers.onrender.com/api/:path*" },
+    { "source": "/admin/:path*",  "destination": "https://esicom-suppliers.onrender.com/admin/:path*" },
+    { "source": "/static/:path*", "destination": "https://esicom-suppliers.onrender.com/static/:path*" },
+    { "source": "/media/:path*",  "destination": "https://esicom-suppliers.onrender.com/media/:path*" }
+  ]
+}
