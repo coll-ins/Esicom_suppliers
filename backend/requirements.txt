@@ -1,0 +1,9 @@
+Django>=5.2,<5.3
+django-cors-headers>=4.6,<5.0
+gunicorn>=23,<24
+dj-database-url>=2.3,<4.0
+psycopg[binary]>=3.2,<4
+Pillow>=11,<13
+pdf2docx>=0.5.10,<0.6
+PyMuPDF>=1.26.7,<2
+qrcode[pil]>=8,<9
