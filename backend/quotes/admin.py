@@ -1,7 +1,52 @@
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from .models import CatalogItem, FileSubmission, PageContent, QuoteRequest
+from .models import CatalogItem, FileSubmission, PageContent, PageSection, QuoteRequest, SitePhoto
+
+admin.site.site_header = 'Esicom Suppliers — Website Editor'
+admin.site.site_title = 'Esicom Website Editor'
+admin.site.index_title = 'Manage your website content'
+
+
+@admin.register(SitePhoto)
+class SitePhotoAdmin(admin.ModelAdmin):
+    list_display = ('get_source_path_display', 'image_preview', 'updated_at')
+    readonly_fields = ('image_preview', 'updated_at')
+    fields = ('source_path', 'image', 'image_preview', 'updated_at')
+
+    @admin.display(description='Current photo')
+    def image_preview(self, obj):
+        if not obj or not obj.image:
+            return 'No photo uploaded'
+        return format_html(
+            '<img src="{}" alt="" style="max-width:180px;max-height:110px;object-fit:cover;border-radius:8px">',
+            obj.image.url,
+        )
+
+    def delete_queryset(self, request, queryset):
+        for photo in queryset:
+            photo.delete()
+
+
+@admin.register(PageSection)
+class PageSectionAdmin(admin.ModelAdmin):
+    list_display = ('title', 'page', 'is_published', 'display_order', 'updated_at')
+    list_filter = ('page', 'is_published')
+    search_fields = ('title', 'body')
+    list_editable = ('is_published', 'display_order')
+    readonly_fields = ('updated_at',)
+    fieldsets = (
+        ('What visitors will see', {
+            'fields': ('page', 'title', 'body', 'image'),
+            'description': 'Add an optional section to a page. Leave the photo blank if you only want text.',
+        }),
+        ('Optional button', {'fields': ('button_text', 'button_url')}),
+        ('Visibility and order', {'fields': ('is_published', 'display_order', 'updated_at')}),
+    )
+
+    def delete_queryset(self, request, queryset):
+        for section in queryset:
+            section.delete()
 
 
 @admin.register(PageContent)
@@ -15,6 +60,10 @@ class PageContentAdmin(admin.ModelAdmin):
         ('Page photo', {'fields': ('hero_image',)}),
         ('Last updated', {'fields': ('updated_at',)}),
     )
+
+    def delete_queryset(self, request, queryset):
+        for page in queryset:
+            page.delete()
 
 
 @admin.register(CatalogItem)
@@ -30,6 +79,10 @@ class CatalogItemAdmin(admin.ModelAdmin):
         ('Website placement', {'fields': ('is_featured', 'is_published', 'display_order')}),
         ('Last updated', {'fields': ('updated_at',)}),
     )
+
+    def delete_queryset(self, request, queryset):
+        for item in queryset:
+            item.delete()
 
 
 @admin.register(QuoteRequest)

@@ -8,15 +8,17 @@ from pathlib import Path
 import qrcode
 from django.conf import settings
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.core.files.base import ContentFile
 from django.core.mail import EmailMessage, send_mail
 from django.http import FileResponse, Http404, HttpResponse, HttpResponseNotFound, JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from django.contrib.admin.views.decorators import staff_member_required
 from .file_conversion import convert_file
-from .models import CatalogItem, FileSubmission, PageContent, QuoteRequest
+from .models import CatalogItem, FileSubmission, PAGE_CHOICES, PageContent, PageSection, QuoteRequest, SitePhoto, VisualEdit
 logger = logging.getLogger(__name__)
 
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024
@@ -28,6 +30,24 @@ ALLOWED_IMAGE_CONVERSIONS = {'jpeg', 'png', 'webp'}
 
 def private_media_not_found(request, path):
     return HttpResponseNotFound()
+
+
+@require_GET
+def public_media(request, path):
+    media_root = Path(settings.MEDIA_ROOT).resolve()
+    try:
+        file_path = (media_root / path).resolve(strict=True)
+        relative_path = file_path.relative_to(media_root)
+    except (OSError, ValueError):
+        raise Http404
+    if not relative_path.parts or relative_path.parts[0] not in {'catalog', 'pages'} or not file_path.is_file():
+        raise Http404
+
+    content_type = mimetypes.guess_type(file_path.name)[0] or 'application/octet-stream'
+    response = FileResponse(file_path.open('rb'), content_type=content_type)
+    response['Cache-Control'] = 'public, max-age=3600'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 @require_GET
@@ -54,7 +74,137 @@ def site_content(request):
         'image': item.image.url,
         'featured': item.is_featured,
     } for item in CatalogItem.objects.filter(is_published=True).order_by('display_order', 'name')]
-    return JsonResponse({'pages': pages, 'products': products})
+    sections = [{
+        'id': section.pk,
+        'page': section.page,
+        'title': section.title,
+        'body': section.body,
+        'image': section.image.url if section.image else '',
+        'button_text': section.button_text,
+        'button_url': section.button_url,
+    } for section in PageSection.objects.filter(is_published=True)]
+    photos = {
+        photo.source_path: photo.image.url
+        for photo in SitePhoto.objects.all()
+    }
+    visual_edits = [{
+        'page': edit.page,
+        'selector': edit.selector,
+        'text': edit.text_value if edit.text_enabled else None,
+        'image': edit.image.url if edit.image else '',
+        'font_family': edit.font_family,
+        'font_size': edit.font_size,
+        'text_color': edit.text_color,
+        'hidden': edit.hidden,
+    } for edit in VisualEdit.objects.all()]
+    return JsonResponse({
+        'pages': pages,
+        'products': products,
+        'sections': sections,
+        'photos': photos,
+        'visual_edits': visual_edits,
+    })
+
+
+@staff_member_required
+@ensure_csrf_cookie
+def visual_editor(request):
+    selected_page = request.GET.get('page', 'home')
+    if selected_page not in dict(PAGE_CHOICES):
+        selected_page = 'home'
+    return render(request, 'quotes/visual_editor.html', {
+        'pages': PAGE_CHOICES,
+        'preview_url': settings.ESICOM_EDITOR_PREVIEW_URL,
+        'editor_origin': request.build_absolute_uri('/'),
+        'selected_page': selected_page,
+    })
+
+
+@staff_member_required
+@require_http_methods(['GET', 'POST', 'DELETE'])
+def visual_edit_api(request, page):
+    if page not in dict(PAGE_CHOICES):
+        return JsonResponse({'detail': 'Choose a website page from the editor.'}, status=404)
+
+    if request.method == 'GET':
+        edits = VisualEdit.objects.filter(page__in=[page, 'global'])
+        return JsonResponse({'edits': [{
+            'selector': edit.selector,
+            'text': edit.text_value if edit.text_enabled else '',
+            'text_enabled': edit.text_enabled,
+            'image': edit.image.url if edit.image else '',
+            'font_family': edit.font_family,
+            'font_size': edit.font_size or '',
+            'text_color': edit.text_color,
+            'hidden': edit.hidden,
+        } for edit in edits]})
+
+    selector = request.POST.get('selector', '') if request.method == 'POST' else request.GET.get('selector', '')
+    if request.content_type == 'application/json':
+        try:
+            payload = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'detail': 'The editor sent invalid data.'}, status=400)
+        selector = payload.get('selector', '')
+    else:
+        payload = request.POST
+
+    edit_page = 'global' if selector.startswith(('header >', 'footer >', '.topline >')) else page
+    if request.method == 'DELETE':
+        edit = get_object_or_404(VisualEdit, page=edit_page, selector=selector)
+        edit.delete()
+        return JsonResponse({'ok': True})
+
+    edit = VisualEdit.objects.filter(page=edit_page, selector=selector).first()
+    if edit is None:
+        edit = VisualEdit(page=edit_page, selector=selector)
+    edit.text_value = payload.get('text', '')
+    edit.text_enabled = str(payload.get('text_enabled', '')).lower() in {'true', '1', 'on'}
+    edit.font_family = payload.get('font_family', '')
+    font_size = payload.get('font_size', '')
+    try:
+        edit.font_size = int(font_size) if font_size else None
+    except (TypeError, ValueError):
+        return JsonResponse({'detail': 'Font size must be a number.'}, status=400)
+    edit.text_color = payload.get('text_color', '').strip()
+    edit.hidden = str(payload.get('hidden', '')).lower() in {'true', '1', 'on'}
+    if 'image' in request.FILES:
+        edit.image = request.FILES['image']
+    elif str(payload.get('remove_image', '')).lower() in {'true', '1', 'on'}:
+        edit.image = ''
+
+    try:
+        edit.save()
+    except ValidationError as error:
+        return JsonResponse({'detail': error.messages[0]}, status=400)
+
+    return JsonResponse({'ok': True})
+
+
+@staff_member_required
+@require_POST
+def create_page_section(request, page):
+    if page not in dict(PAGE_CHOICES):
+        return JsonResponse({'detail': 'Choose a website page from the editor.'}, status=404)
+
+    section = PageSection(
+        page=page,
+        title=request.POST.get('title', '').strip(),
+        body=request.POST.get('body', '').strip(),
+        button_text=request.POST.get('button_text', '').strip(),
+        button_url=request.POST.get('button_url', '').strip(),
+        display_order=(PageSection.objects.filter(page=page).order_by('-display_order')
+                       .values_list('display_order', flat=True).first() or 0) + 1,
+        is_published=True,
+    )
+    if 'image' in request.FILES:
+        section.image = request.FILES['image']
+    try:
+        section.full_clean()
+        section.save()
+    except ValidationError as error:
+        return JsonResponse({'detail': error.messages[0]}, status=400)
+    return JsonResponse({'ok': True, 'id': section.pk}, status=201)
 
 
 @require_GET

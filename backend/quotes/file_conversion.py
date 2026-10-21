@@ -12,7 +12,7 @@ IMAGE_FORMATS = {
     'webp': ('WEBP', 'webp'),
 }
 MAX_IMAGE_PIXELS = 40_000_000
-MAX_PDF_PAGES = 50
+MAX_PDF_PAGES = 1000
 
 
 def convert_file(source_path, original_filename, conversion):
