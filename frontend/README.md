@@ -23,7 +23,7 @@ Each category/service page has its own URL, page heading, imagery, specific serv
 
 ## Photography
 
-The site uses locally stored, optimized WebP photographs from Unsplash and illustrative Commons photos of packaged pens and copy paper. These images illustrate product categories and are not proof of Esicom inventory or completed customer projects. Original image sources:
+The homepage has an automatically rotating, manually controlled photo carousel for Esicom's office supplies, computer consumables, printing and branding. It uses locally stored, optimized WebP photographs from Unsplash and illustrative Commons photos of packaged pens and copy paper. These images illustrate product categories and are not proof of Esicom inventory or completed customer projects. Original image sources:
 
 - Workspace — [Unsplash photo](https://images.unsplash.com/photo-1497366811353-6870744d04b2)
 - Stationery — [Unsplash photo](https://images.unsplash.com/photo-1517842645767-c639042777db)
@@ -68,13 +68,13 @@ Deploy the contents of `dist/` to a static host. Each service has its own genera
 
 ## Enquiries
 
-Quote requests are submitted to `POST /api/quote/` and saved by the Django backend. Set `window.ESICOM_API_BASE_URL` in `public/site-config.js` when the API is hosted on a different origin; see the repository root README for backend and CORS setup. Visitors can also contact Esicom directly using the email and WhatsApp links.
+Quote requests are submitted to `POST /api/quote/` and saved by the Django backend. Set `window.ESICOM_API_BASE_URL` in `public/site-config.js` for a local/manual build, or set the `ESICOM_API_BASE_URL` environment variable to the HTTPS backend origin during a production build. See the repository root README for Render/Vercel and CORS setup. Visitors can also contact Esicom directly using the email and WhatsApp links.
 
 The file page accepts PDF, JPG, PNG, and WebP files, with a 15 MB maximum for email attachments and a 50 MB maximum for WhatsApp sharing. PDFs may be converted to DOCX; images can be converted among JPEG, PNG, and WebP. Email sends the actual uploaded/converted file as an attachment; configure SMTP for delivery (the local development console backend is not a real inbox). WhatsApp opens the phone's file-share sheet and requires the visitor to choose Esicom's chat and confirm Send. A private copy remains in Django Admin until staff deletes it. See the root and backend READMEs for deployment requirements and conversion limitations.
 
 ## Staff content editor
 
-The Django Admin at `/admin/` is the staff-only editor for website copy and product listings. Staff can edit page headings, copy and optional hero images; add genuine products or branded merchandise with photos; publish or unpublish entries; and choose which products appear on the homepage. The static site fetches published entries from `GET /api/site-content/`. Set `window.ESICOM_API_BASE_URL` in `public/site-config.js` to the backend origin for a separate-origin setup, then rebuild; the frontend falls back to its built-in copy and illustrative product cards if the API is unavailable. See the root README for setup and production media-storage instructions.
+The Django Admin at `/admin/` is the staff-only editor for website copy and product listings. Sign in with a Django staff account, then use **Website pages** to change each page's heading, introduction and optional hero photo. Use **Products & merchandise** to add or edit listings and photos, choose their category page, set display order, feature them on the homepage, or unpublish them to remove them from the public site. Featured product photos also appear in the homepage carousel; changing, featuring or unpublishing products updates the carousel when the public site is connected to the API. Delete an item in Admin when it should be removed permanently. Use real Esicom product, workplace or branded-merchandise photos when available; the built-in local stock photographs are illustrative, not completed customer projects. The static site fetches published entries from `GET /api/site-content/`, so content changes appear on the public site without rebuilding when the deployed frontend and API are connected. Set `window.ESICOM_API_BASE_URL` in `public/site-config.js` for a local/manual separate-origin build, or set `ESICOM_API_BASE_URL` during the build; the frontend falls back to its built-in copy and illustrative product cards if the API is unavailable. See the root README for setup and production media-storage instructions.
 
 ## Business details
 

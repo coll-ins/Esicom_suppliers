@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>Visual website editor | Esicom Suppliers</title>
+  <style>
+    :root{color-scheme:light;--ink:#183c35;--green:#267a46;--gold:#b8894f;--paper:#f4f5ef;--line:#dce3d9;--muted:#64736b}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 "DM Sans",Arial,sans-serif}
+    a{color:inherit}.topbar{height:66px;padding:0 22px;background:#15362f;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .brand{font-weight:800;letter-spacing:.12em}.top-actions{display:flex;align-items:center;gap:16px;font-size:13px}.top-actions a{text-decoration:none;color:#dce8dc}
+    .editor-layout{display:grid;grid-template-columns:minmax(330px,390px) minmax(0,1fr);height:calc(100vh - 66px)}
+    .inspector{background:#fffefa;border-right:1px solid var(--line);overflow:auto;padding:24px}
+    .eyebrow{color:var(--green);font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+    h1{font:800 25px/1.2 Manrope,Arial,sans-serif;letter-spacing:-.04em;margin:7px 0 8px}
+    .help{color:var(--muted);margin:0 0 20px}.page-picker{display:grid;gap:7px;margin-bottom:18px}
+    label{font-weight:700;font-size:12px}.page-picker select,.control input:not([type=checkbox]):not([type=file]),.control textarea,.control select{
+      width:100%;margin-top:6px;min-height:40px;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:#fff;color:#183c35;font:inherit
+    }
+    .selection-card{padding:13px 14px;margin:0 0 16px;background:#f1f5ef;border:1px solid #dfe8dc;border-radius:11px}
+    .selection-card strong{display:block;font-size:13px}.selection-card span{color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+    .empty-selection{color:var(--muted);font-size:12px}.control{display:grid;gap:8px;padding:15px 0;border-top:1px solid #e9ede7}
+    .control textarea{min-height:100px;resize:vertical}.check-row{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600}
+    .check-row input{accent-color:var(--green)}.image-preview{display:none;width:100%;max-height:175px;object-fit:cover;border-radius:9px;border:1px solid var(--line);margin-top:8px}
+    .color-row{display:grid;grid-template-columns:1fr 48px;gap:8px;align-items:end}.color-row input[type=color]{width:48px;height:40px;margin-top:6px;padding:3px;border:1px solid var(--line);border-radius:8px;background:#fff}
+    .button-row{display:flex;gap:9px;padding-top:16px}    .button{border:0;border-radius:999px;padding:11px 16px;font:700 12px Arial,sans-serif;cursor:pointer}
+    .primary{background:var(--green);color:white;flex:1}.secondary{background:#eff3ed;color:var(--ink)}.button:disabled{opacity:.55;cursor:wait}
+    .status{min-height:22px;margin:10px 0 0;color:var(--green);font-size:12px}.status.error{color:#a33427}
+    .preview-area{min-width:0;display:flex;flex-direction:column}.preview-toolbar{min-height:53px;background:#fffefa;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 18px;gap:10px}
+    .preview-toolbar strong{font-size:12px}.preview-toolbar span{font-size:11px;color:var(--muted)}
+    .preview-toolbar button{border:0;border-radius:999px;background:var(--green);color:#fff;padding:9px 14px;font-weight:700;cursor:pointer}
+    .preview-frame{border:0;width:100%;height:100%;background:#fff}
+    @media(max-width:850px){.editor-layout{grid-template-columns:1fr;height:auto}.inspector{order:2;border-right:0}.preview-area{height:72vh;order:1}.topbar{padding:0 14px}.top-actions{gap:9px}.top-actions a:first-child{display:none}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">ESICOM <span style="font-weight:500;letter-spacing:0">· Visual website editor</span></div>
+    <div class="top-actions"><a href="{{ preview_url }}/" target="_blank" rel="noopener">Open website</a><a href="/admin/">Back to content manager</a></div>
+  </header>
+  <main class="editor-layout">
+    <aside class="inspector">
+      <div class="eyebrow">Make it yours</div>
+      <h1>Edit the page as you see it</h1>
+      <p class="help">Choose a page, then click wording or a photo in the preview. The panel will show what you selected.</p>
+      <div class="page-picker">
+        <label for="page-picker">Website page
+          <select id="page-picker">
+            {% for value, label in pages %}
+              <option value="{{ value }}" {% if selected_page == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <div class="selection-card" id="selection-card">
+        <strong id="selection-name">Nothing selected yet</strong>
+        <span id="selection-path">Click any photo or text in the website preview.</span>
+      </div>
+      <p class="empty-selection" id="empty-selection">Your changes update the real page after you save. Add a new text or photo section here; product cards are managed in Products &amp; merchandise.</p>
+      <form id="section-form" hidden>
+        <div class="control">
+          <div class="eyebrow">Add to this page</div>
+          <label for="section-title">Section heading *</label>
+          <input id="section-title" name="title" required maxlength="140" placeholder="A short heading">
+          <label for="section-body">Words for your visitors</label>
+          <textarea id="section-body" name="body" maxlength="1600" placeholder="Write the message you want customers to see"></textarea>
+          <label for="section-image">Add a photo (optional)</label>
+          <input id="section-image" name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+          <label for="section-button">Button wording (optional)</label>
+          <input id="section-button" name="button_text" maxlength="80" placeholder="For example: Contact us">
+          <label for="section-link">Where should the button go?</label>
+          <input id="section-link" name="button_url" maxlength="300" placeholder="/contact/ or https://example.com">
+          <div class="button-row"><button class="button primary" type="submit">Add section to page</button></div>
+        </div>
+      </form>
+      <form id="edit-form" hidden>
+        <div class="control" id="text-control">
+          <label for="text-value">Words on the selected item</label>
+          <textarea id="text-value" maxlength="2400"></textarea>
+          <label class="check-row"><input type="checkbox" id="text-enabled"> Replace the wording with this text</label>
+        </div>
+        <div class="control" id="image-control" hidden>
+          <label for="image-file">Replace this photo</label>
+          <input id="image-file" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+          <img class="image-preview" id="image-preview" alt="Selected image preview">
+          <label class="check-row"><input type="checkbox" id="remove-image"> Remove this photo change and restore its original</label>
+        </div>
+        <div class="control">
+          <label for="font-family">Font</label>
+          <select id="font-family">
+            <option value="">Keep website font</option>
+            <option value="Manrope">Manrope</option>
+            <option value="DM Sans">DM Sans</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Arial">Arial</option>
+            <option value="system-ui">System default</option>
+          </select>
+          <label for="font-size">Text size (8–96 px)</label>
+          <input id="font-size" type="number" min="8" max="96" placeholder="Keep current size">
+          <div class="color-row">
+            <label for="text-color">Text colour
+              <input id="text-color" type="text" maxlength="7" placeholder="#183c35">
+            </label>
+            <input id="color-picker" type="color" aria-label="Choose text colour">
+          </div>
+        </div>
+        <div class="control">
+          <label class="check-row"><input type="checkbox" id="hidden"> Hide this item on the website</label>
+        </div>
+        <div class="button-row">
+          <button class="button primary" id="save-button" type="submit">Save changes</button>
+          <button class="button secondary" id="reset-button" type="button">Restore original</button>
+        </div>
+      </form>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </aside>
+    <section class="preview-area" aria-label="Website preview">
+      <div class="preview-toolbar"><strong>Live website preview</strong><span>Click wording or a photo to change it</span><button id="add-section-button" type="button">+ Add a section</button></div>
+      <iframe class="preview-frame" id="preview-frame" title="Clickable preview of the selected website page"></iframe>
+    </section>
+  </main>
+  <script>
+    (()=>{
+      const pagePicker=document.querySelector('#page-picker');
+      const frame=document.querySelector('#preview-frame');
+      const form=document.querySelector('#edit-form');
+      const sectionForm=document.querySelector('#section-form');
+      const addSectionButton=document.querySelector('#add-section-button');
+      const empty=document.querySelector('#empty-selection');
+      const status=document.querySelector('#status');
+      const imagePreview=document.querySelector('#image-preview');
+      const imageFile=document.querySelector('#image-file');
+      let selected=null;
+      let savedEdit=null;
+      let editsBySelector=new Map();
+      const previewBase="{{ preview_url|escapejs }}";
+      const editorOrigin="{{ editor_origin|escapejs }}";
+      const apiForPage=page=>'/api/visual-edits/'+encodeURIComponent(page)+'/';
+      const csrfToken=document.querySelector('meta[name="csrf-token"]').content;
+      const pageUrl=page=>{
+        const path=page==='home'?'/':'/'+page+'/';
+        return previewBase+path+'?editor=1&editor_origin='+encodeURIComponent(new URL(editorOrigin).origin);
+      };
+      const setStatus=(message,isError=false)=>{
+        status.textContent=message;
+        status.classList.toggle('error',isError);
+      };
+      const refreshFrame=()=>{frame.src=pageUrl(pagePicker.value)};
+      const loadPageEdits=async()=>{
+        const response=await fetch(apiForPage(pagePicker.value),{headers:{'Accept':'application/json'}});
+        if(!response.ok)throw new Error('Could not load saved changes for this page.');
+        const result=await response.json();
+        editsBySelector=new Map(result.edits.map(edit=>[edit.selector,edit]));
+      };
+      const previewChange=()=>{
+        if(!selected)return;
+        const image=imageFile.files[0];
+        const sendPreview=previewImage=>{
+        const edit={
+          selector:selected.selector,
+          text:document.querySelector('#text-enabled').checked?document.querySelector('#text-value').value:null,
+          image:previewImage??(document.querySelector('#remove-image').checked?'':null),
+          font_family:document.querySelector('#font-family').value,
+          font_size:document.querySelector('#font-size').value,
+          text_color:document.querySelector('#text-color').value,
+          hidden:document.querySelector('#hidden').checked,
+        };
+        frame.contentWindow.postMessage({type:'esicom-visual-editor-preview',edit},new URL(previewBase).origin);
+        };
+        if(image){
+          const reader=new FileReader();
+          reader.addEventListener('load',()=>sendPreview(String(reader.result)));
+          reader.addEventListener('error',()=>setStatus('The selected photo could not be previewed.',true));
+          reader.readAsDataURL(image);
+          return;
+        }
+        sendPreview(null);
+      };
+      const showSelection=async info=>{
+        selected=info;
+        if(!editsBySelector.has(info.selector))await loadPageEdits();
+        savedEdit=editsBySelector.get(info.selector)||null;
+        document.querySelector('#selection-name').textContent=(info.tag==='img'?'Photo':'Text or element')+' selected';
+        document.querySelector('#selection-path').textContent=info.tag.toUpperCase()+' on '+pagePicker.options[pagePicker.selectedIndex].text;
+        empty.hidden=true;
+        form.hidden=false;
+        const textEnabled=document.querySelector('#text-enabled');
+        textEnabled.checked=savedEdit?savedEdit.text_enabled:info.tag!=='img';
+        document.querySelector('#text-value').value=savedEdit?.text_enabled?savedEdit.text:info.text;
+        document.querySelector('#text-control').hidden=info.tag==='img';
+        document.querySelector('#image-control').hidden=info.tag!=='img';
+        document.querySelector('#font-family').value=savedEdit?.font_family||'';
+        document.querySelector('#font-size').value=savedEdit?.font_size||'';
+        document.querySelector('#text-color').value=savedEdit?.text_color||'';
+        document.querySelector('#hidden').checked=Boolean(savedEdit?.hidden);
+        document.querySelector('#remove-image').checked=false;
+        imageFile.value='';
+        const image=savedEdit?.image||info.image;
+        imagePreview.src=image;
+        imagePreview.style.display=info.tag==='img'&&image?'block':'none';
+        setStatus('');
+      };
+      pagePicker.addEventListener('change',async()=>{
+        selected=null;
+        form.hidden=true;
+        sectionForm.hidden=true;
+        empty.hidden=false;
+        setStatus('');
+        refreshFrame();
+        try{await loadPageEdits()}catch(error){setStatus(error.message,true)}
+      });
+      window.addEventListener('message',event=>{
+        if(event.source!==frame.contentWindow||event.origin!==new URL(previewBase).origin)return;
+        if(event.data?.type==='esicom-visual-editor-select'&&event.data.page===pagePicker.value){
+          showSelection(event.data).catch(error=>setStatus(error.message,true));
+        }
+      });
+      form.addEventListener('input',previewChange);
+      form.addEventListener('change',previewChange);
+      document.querySelector('#color-picker').addEventListener('input',event=>{
+        document.querySelector('#text-color').value=event.target.value;
+        previewChange();
+      });
+      document.querySelector('#text-color').addEventListener('input',event=>{
+        if(/^#[0-9a-fA-F]{6}$/.test(event.target.value))document.querySelector('#color-picker').value=event.target.value;
+      });
+      imageFile.addEventListener('change',()=>{
+        const file=imageFile.files[0];
+        if(file){
+          imagePreview.src=URL.createObjectURL(file);
+          imagePreview.style.display='block';
+        }
+        previewChange();
+      });
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();
+        if(!selected)return;
+        const data=new FormData();
+        data.set('selector',selected.selector);
+        data.set('text',document.querySelector('#text-value').value);
+        data.set('text_enabled',document.querySelector('#text-enabled').checked?'true':'false');
+        data.set('font_family',document.querySelector('#font-family').value);
+        data.set('font_size',document.querySelector('#font-size').value);
+        data.set('text_color',document.querySelector('#text-color').value);
+        data.set('hidden',document.querySelector('#hidden').checked?'true':'false');
+        if(imageFile.files[0])data.set('image',imageFile.files[0]);
+        if(document.querySelector('#remove-image').checked)data.set('remove_image','true');
+        const button=document.querySelector('#save-button');
+        button.disabled=true;
+        setStatus('Saving your change…');
+        try{
+          const response=await fetch(apiForPage(pagePicker.value),{
+            method:'POST',
+            headers:{'X-CSRFToken':csrfToken,'Accept':'application/json'},
+            body:data,
+          });
+          const result=await response.json();
+          if(!response.ok)throw new Error(result.detail||'The change could not be saved.');
+          setStatus('Saved. This change is now part of the website.');
+          await loadPageEdits();
+          imageFile.value='';
+          document.querySelector('#remove-image').checked=false;
+          refreshFrame();
+        }catch(error){setStatus(error.message,true)}
+        finally{button.disabled=false}
+      });
+      addSectionButton.addEventListener('click',()=>{
+        selected=null;
+        form.hidden=true;
+        empty.hidden=true;
+        sectionForm.hidden=false;
+        setStatus('Add a new text or photo section to this page.');
+        document.querySelector('#section-title').focus();
+      });
+      sectionForm.addEventListener('submit',async event=>{
+        event.preventDefault();
+        const button=sectionForm.querySelector('[type="submit"]');
+        button.disabled=true;
+        setStatus('Adding your section…');
+        try{
+          const response=await fetch('/api/page-sections/'+encodeURIComponent(pagePicker.value)+'/',{
+            method:'POST',
+            headers:{'X-CSRFToken':csrfToken,'Accept':'application/json'},
+            body:new FormData(sectionForm),
+          });
+          const result=await response.json();
+          if(!response.ok)throw new Error(result.detail||'The section could not be added.');
+          sectionForm.reset();
+          setStatus('Section added to the page.');
+          refreshFrame();
+        }catch(error){setStatus(error.message,true)}
+        finally{button.disabled=false}
+      });
+      document.querySelector('#reset-button').addEventListener('click',async()=>{
+        if(!selected)return;
+        if(!window.confirm('Restore this item to its original website content?'))return;
+        try{
+          const response=await fetch(apiForPage(pagePicker.value)+'?selector='+encodeURIComponent(selected.selector),{
+            method:'DELETE',
+            headers:{'X-CSRFToken':csrfToken,'Accept':'application/json'},
+          });
+          const result=await response.json();
+          if(!response.ok)throw new Error(result.detail||'The original could not be restored.');
+          setStatus('Original website content restored.');
+          await loadPageEdits();
+          refreshFrame();
+          showSelection(selected);
+        }catch(error){setStatus(error.message,true)}
+      });
+      refreshFrame();
+      loadPageEdits().catch(error=>setStatus(error.message,true));
+    })();
+  </script>
+</body>
+</html>

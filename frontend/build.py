@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Dependency-free static production builder for Esicom Suppliers."""
 from pathlib import Path
-import shutil, re, sys
+import json, os, shutil, re, sys
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent
 DIST = ROOT / 'dist'
@@ -138,6 +139,109 @@ body{background:var(--paper);color:#203b34}
 .qr-instructions{max-width:540px;margin:0 auto 20px;color:var(--muted)}
 @media(max-width:760px){.upload-shell,.qr-shell{padding:36px 0 55px}.upload-grid{grid-template-columns:1fr}}
 @media print{.topline,.header,.footer,.whatsapp,.qr-actions,.skip-link{display:none!important}body,.qr-shell{background:#fff!important}.wrap{width:100%}.qr-card{border:0;box-shadow:none;padding:15mm}.qr-image{width:85mm;margin:12mm auto}.qr-card h1{font-size:28pt}}
+
+/* A darker, photo-led identity inspired by the reference while keeping Esicom's own palette. */
+.header{background:rgba(20,51,45,.97);border-bottom-color:#ffffff1c;box-shadow:0 12px 35px rgba(13,38,31,.18)}
+.brand-name{color:#fff}
+.brand-sub{color:#c5d7ca}
+.brand-mark{background:#f7f5ef;color:#183c35;box-shadow:none}
+.navlinks a{color:#edf4ed}
+.navlinks a:hover,.navlinks a[aria-current=page]{border-color:#69b875;color:#fff}
+.header .btn-light{background:transparent;border-color:#ffffff55;color:#fff;box-shadow:none}
+.header .btn-primary{background:#2f9b55;color:#fff;box-shadow:0 8px 22px rgba(24,111,58,.28)}
+.header .btn-primary:hover{background:#38ad63}
+.menu-btn{background:transparent;border-color:#ffffff55;color:#fff}
+.mobile-nav{background:#14332d;border-top-color:#ffffff20}
+.mobile-nav a{color:#edf4ed}
+.mobile-nav a:hover,.mobile-nav a[aria-current=page]{background:#ffffff12;color:#fff}
+.hero{padding:88px 0 92px;background:radial-gradient(ellipse at 90% 32%,rgba(218,231,216,.88),transparent 42%),linear-gradient(112deg,#f8f7f2 0%,#f8f7f2 50%,#eaf0e8 50%,#eaf0e8 100%)}
+.hero h1{max-width:650px;font-size:clamp(52px,6.4vw,88px);line-height:.98}
+.hero h1 span{color:#347d4a}
+.hero-visual img{height:520px;border-radius:20px;transform:none;box-shadow:0 34px 72px rgba(21,49,41,.22)}
+.hero-visual:hover img{transform:translateY(-5px);box-shadow:0 42px 85px rgba(21,49,41,.27)}
+.hero-visual:before{border-radius:22px}
+.visual-caption{background:linear-gradient(105deg,rgba(18,48,39,.94),rgba(34,80,52,.82))}
+.btn-primary{background:#267a46}
+.btn-primary:hover{background:#338b52}
+.section-head h2{color:#1d3d33}
+.section.dark .section-head h2{color:#fff}
+.service-feature{min-height:390px}
+.cta-band{background:linear-gradient(120deg,#e3ebdf,#f0e8d8);border-color:#dce3d8}
+.footer{background:radial-gradient(ellipse at 78% 0%,#285344 0%,transparent 39%),#14332d}
+.whatsapp{background:#218c4c}
+.whatsapp:hover{background:#2ba45a}
+@media(max-width:900px){
+  .hero{padding:62px 0 66px;background:radial-gradient(ellipse at 88% 72%,#e1e9df,transparent 40%),#f7f5ef}
+  .hero-visual img{height:420px}
+}
+@media(max-width:600px){
+  .hero{padding:40px 0 50px}
+  .hero h1{font-size:clamp(46px,12vw,68px)}
+  .hero-visual img{height:290px}
+}
+.hero-visual{min-width:0}
+.hero-carousel{position:relative;overflow:hidden;border-radius:22px;background:#173a32;box-shadow:0 34px 72px rgba(21,49,41,.22)}
+.hero-slide-link{display:block;position:relative}
+.hero-carousel img{height:520px;width:100%;object-fit:cover;opacity:1;transition:opacity .35s ease,transform .8s cubic-bezier(.2,.7,.2,1)}
+.hero-carousel img.is-changing{opacity:.35;transform:scale(1.025)}
+.hero-slide-link:after{content:"";position:absolute;inset:30% 0 0;background:linear-gradient(0deg,rgba(13,38,31,.78),transparent);pointer-events:none}
+.hero-carousel .visual-caption{position:absolute;z-index:1;left:22px;right:22px;bottom:20px;display:flex;align-items:end;justify-content:space-between;gap:18px;background:transparent;border:0;box-shadow:none;padding:0}
+.hero-caption-copy{display:grid;gap:4px}
+.hero-caption-copy small{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#d8c49f}
+.hero-caption-copy strong{font:800 clamp(18px,2.2vw,25px)/1.15 Manrope,sans-serif;color:#fff}
+.hero-slide-more{flex:0 0 auto;color:#fff;font-size:12px;font-weight:800}
+.hero-carousel-controls{position:absolute;z-index:2;top:18px;right:18px;display:flex;align-items:center;gap:7px;padding:7px;border:1px solid #ffffff42;border-radius:999px;background:rgba(19,48,41,.7);backdrop-filter:blur(12px)}
+.hero-carousel-controls button{display:grid;place-items:center;min-width:32px;height:32px;padding:0 9px;border:0;border-radius:999px;background:transparent;color:#fff;font:700 13px 'DM Sans',sans-serif;cursor:pointer}
+.hero-carousel-controls button:hover,.hero-carousel-controls button:focus-visible{background:#ffffff24;outline:none}
+.hero-carousel-controls [data-hero-dots]{display:flex;align-items:center;gap:5px}
+.hero-carousel-controls [data-hero-dots] button{min-width:10px;width:10px;height:10px;padding:0;background:#ffffff75}
+.hero-carousel-controls [data-hero-dots] button[aria-current=true]{width:24px;background:#d8c49f}
+.hero-carousel .floating-note{z-index:2;top:20px;left:20px;border-radius:999px;padding:11px 15px;background:#fffefa;color:#244438}
+.hero-carousel:before{display:none}
+@media(max-width:900px){.hero-carousel img{height:420px}}
+@media(max-width:600px){
+ .hero-carousel{border-radius:16px}
+ .hero-carousel img{height:300px}
+ .hero-carousel .floating-note{top:13px;left:12px;padding:9px 12px}
+ .hero-carousel-controls{top:12px;right:12px;gap:3px;padding:5px}
+ .hero-carousel-controls button{min-width:28px;height:28px}
+ .hero-carousel .visual-caption{left:14px;right:14px;bottom:14px}
+ .hero-caption-copy strong{font-size:18px}
+}
+body.visual-editor-mode img,
+body.visual-editor-mode h1,
+body.visual-editor-mode h2,
+body.visual-editor-mode h3,
+body.visual-editor-mode p,
+body.visual-editor-mode a,
+body.visual-editor-mode button,
+body.visual-editor-mode span,
+body.visual-editor-mode small,
+body.visual-editor-mode li,
+body.visual-editor-mode .eyebrow,
+body.visual-editor-mode .mockup-label{cursor:crosshair!important}
+body.visual-editor-mode img:hover,
+body.visual-editor-mode h1:hover,
+body.visual-editor-mode h2:hover,
+body.visual-editor-mode h3:hover,
+body.visual-editor-mode p:hover,
+body.visual-editor-mode a:hover,
+body.visual-editor-mode button:hover,
+body.visual-editor-mode span:hover,
+body.visual-editor-mode small:hover,
+body.visual-editor-mode li:hover,
+body.visual-editor-mode .eyebrow:hover,
+body.visual-editor-mode .mockup-label:hover,
+body.visual-editor-mode .visual-editor-selected{outline:3px solid #b8894f!important;outline-offset:3px}
+.cards[data-featured-products] .card img{height:300px}
+.cards[data-featured-products] .card{border-radius:18px}
+.editable-section{background:#fffefa}
+.editable-section-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px;align-items:center}
+.editable-section-card>img{width:100%;max-height:440px;object-fit:cover;border-radius:18px}
+.editable-section-copy h2{font:800 clamp(29px,4vw,45px)/1.1 Manrope,sans-serif;letter-spacing:-.05em;margin:0 0 14px;color:#1d3d33}
+.editable-section-copy p{color:var(--muted);line-height:1.85;white-space:pre-line;margin:0 0 20px}
+@media(max-width:700px){.editable-section-card{grid-template-columns:1fr;gap:22px}}
+@media(prefers-reduced-motion:reduce){.hero-carousel img{transition:none}}
 '''
 
 JS = r'''(()=>{
@@ -163,12 +267,265 @@ if(menu&&nav){
 }
 const main=document.querySelector('main[data-content-page]');
 const pageKey=main?.dataset.contentPage;
-const localApiBase=['localhost','127.0.0.1'].includes(location.hostname)&&['4173','5173'].includes(location.port)?'http://127.0.0.1:8000':'';
+const localApiBase=['localhost','127.0.0.1'].includes(location.hostname)&&['4173','4174','5173'].includes(location.port)?'http://127.0.0.1:8000':'';
 const apiBase=(window.ESICOM_API_BASE_URL||localApiBase).replace(/\/$/,'');
-const imageUrl=path=>new URL(path,apiBase?apiBase+'/':location.origin).href;
+const imageUrl=path=>{
+  if(/^(?:https?:|blob:|data:)/i.test(path))return path;
+  const base=apiBase&&path.startsWith('/media/')?apiBase:location.origin;
+  return new URL(path,base).href;
+};
+let photoOverrides={};
+const siteImage=path=>{
+  if(/^https?:\/\//i.test(path))return path;
+  return imageUrl(photoOverrides[path]||path);
+};
+const visualEditorMode=new URLSearchParams(location.search).get('editor')==='1'&&window.parent!==window;
+const editorParentOrigin=visualEditorMode?new URLSearchParams(location.search).get('editor_origin'):'';
+const visualOriginals=new Map();
+const editorSelector=element=>{
+  const root=element.closest('main[data-content-page],header,footer,.topline');
+  if(!root)return '';
+  const rootSelector=root.matches('main[data-content-page]')
+    ?'main[data-content-page="'+pageKey+'"]'
+    :root.matches('.topline')?'.topline':root.localName;
+  const marker=element.closest('[data-editor-key]');
+  const stableMarker=marker&&root.contains(marker)?marker:null;
+  const parts=[];
+  let current=element;
+  const stopAt=stableMarker||root;
+  while(current&&current!==stopAt){
+    const siblings=[...current.parentElement.children].filter(sibling=>sibling.tagName===current.tagName);
+    parts.unshift(current.localName+':nth-of-type('+(siblings.indexOf(current)+1)+')');
+    current=current.parentElement;
+  }
+  if(stableMarker){
+    const markerSelector='[data-editor-key="'+stableMarker.dataset.editorKey+'"]';
+    return rootSelector+' '+markerSelector+(parts.length?' > '+parts.join(' > '):'');
+  }
+  return current===root?rootSelector+' > '+parts.join(' > '):'';
+};
+const directText=element=>[...element.childNodes]
+  .filter(node=>node.nodeType===Node.TEXT_NODE)
+  .map(node=>node.textContent)
+  .join('')
+  .trim();
+const rememberOriginal=target=>{
+  const selector=editorSelector(target);
+  if(selector&&!visualOriginals.has(selector)){
+    visualOriginals.set(selector,{
+      textNodes:[...target.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE).map(node=>node.textContent),
+      image:target instanceof HTMLImageElement?target.getAttribute('src'):'',
+      fontFamily:target.style.fontFamily,
+      fontSize:target.style.fontSize,
+      color:target.style.color,
+      display:target.style.display,
+    });
+  }
+  return visualOriginals.get(selector);
+};
+const setDirectText=(target,value)=>{
+  const textNodes=[...target.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE);
+  if(textNodes.length){
+    textNodes[0].textContent=value;
+    textNodes.slice(1).forEach(node=>node.remove());
+  }else target.insertBefore(document.createTextNode(value),target.firstChild);
+};
+const applyVisualEdits=edits=>{
+  for(const edit of edits){
+    if(edit.page!==pageKey&&edit.page!=='global')continue;
+    const target=document.querySelector(edit.selector);
+    if(!target)continue;
+    rememberOriginal(target);
+    if(edit.text!==null)setDirectText(target,edit.text);
+    if(edit.image&&target instanceof HTMLImageElement)target.src=imageUrl(edit.image);
+    if(edit.font_family)target.style.fontFamily='"'+edit.font_family+'"';
+    if(edit.font_size)target.style.fontSize=edit.font_size+'px';
+    if(edit.text_color)target.style.color=edit.text_color;
+    if(edit.hidden)target.style.display='none';
+  }
+};
+if(visualEditorMode){
+  document.body.classList.add('visual-editor-mode');
+  window.addEventListener('message',event=>{
+    if(event.origin!==editorParentOrigin||event.source!==parent||event.data?.type!=='esicom-visual-editor-preview')return;
+    const edit=event.data.edit;
+    const target=document.querySelector(edit.selector);
+    if(!target)return;
+    const original=rememberOriginal(target);
+    if(edit.text===null){
+      const textNodes=[...target.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE);
+      textNodes.forEach(node=>node.remove());
+      original.textNodes.forEach(text=>target.insertBefore(document.createTextNode(text),target.firstChild));
+    }else setDirectText(target,edit.text);
+    if(target instanceof HTMLImageElement){
+      if(edit.image!==null)target.src=edit.image?imageUrl(edit.image):imageUrl(original.image);
+    }
+    target.style.fontFamily=edit.font_family?'"'+edit.font_family+'"':original.fontFamily;
+    target.style.fontSize=edit.font_size?edit.font_size+'px':original.fontSize;
+    target.style.color=edit.text_color||original.color;
+    target.style.display=edit.hidden?'none':original.display;
+  });
+  document.addEventListener('click',event=>{
+    const target=event.target.closest('img,h1,h2,h3,p,a,button,span,small,strong,b,li,.eyebrow,.mockup-label');
+    if(!target||!target.closest('main[data-content-page],header,footer,.topline'))return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    document.querySelector('.visual-editor-selected')?.classList.remove('visual-editor-selected');
+    target.classList.add('visual-editor-selected');
+    if(!editorParentOrigin)return;
+    parent.postMessage({
+      type:'esicom-visual-editor-select',
+      page:pageKey,
+      selector:editorSelector(target),
+      tag:target.tagName.toLowerCase(),
+      text:directText(target),
+      image:target instanceof HTMLImageElement?target.src:'',
+      alt:target instanceof HTMLImageElement?target.alt:'',
+    },editorParentOrigin);
+  },true);
+}
+const heroCarousel=pageKey==='home'?document.querySelector('.hero-visual'):null;
+if(heroCarousel){
+  heroCarousel.classList.add('hero-carousel');
+  heroCarousel.setAttribute('role','region');
+  heroCarousel.setAttribute('aria-roledescription','carousel');
+  heroCarousel.setAttribute('aria-label','Featured Esicom supplies, printing and branding');
+  const initialImage=heroCarousel.querySelector('[data-copy-image]');
+  initialImage.removeAttribute('data-copy-image');
+  initialImage.setAttribute('data-hero-slide-image','');
+  initialImage.src='/images/photography/stock-office-box.webp';
+  initialImage.alt='Boxed workplace supplies ready for an office';
+  const note=document.createElement('div');
+  note.className='floating-note';
+  note.textContent='SUPPLY · PRINT · BRAND';
+  const slideLink=document.createElement('a');
+  slideLink.className='hero-slide-link';
+  slideLink.setAttribute('data-hero-slide-link','');
+  slideLink.href='/office-supplies/';
+  slideLink.append(initialImage);
+  const caption=document.createElement('div');
+  caption.className='visual-caption';
+  const captionCopy=document.createElement('div');
+  captionCopy.className='hero-caption-copy';
+  const captionCategory=document.createElement('small');
+  captionCategory.setAttribute('data-hero-slide-category','');
+  const captionTitle=document.createElement('strong');
+  captionTitle.setAttribute('data-hero-slide-title','');
+  captionCopy.append(captionCategory,captionTitle);
+  const slideMore=document.createElement('a');
+  slideMore.className='hero-slide-more';
+  slideMore.setAttribute('data-hero-slide-more','');
+  slideMore.href='/office-supplies/';
+  slideMore.textContent='Explore ↗';
+  caption.append(captionCopy,slideMore);
+  const controls=document.createElement('div');
+  controls.className='hero-carousel-controls';
+  controls.setAttribute('aria-label','Photo slideshow controls');
+  const previous=document.createElement('button');
+  previous.type='button';
+  previous.setAttribute('data-hero-previous','');
+  previous.setAttribute('aria-label','Previous photo');
+  previous.textContent='←';
+  const dots=document.createElement('div');
+  dots.setAttribute('data-hero-dots','');
+  dots.setAttribute('aria-label','Choose a photo');
+  const next=document.createElement('button');
+  next.type='button';
+  next.setAttribute('data-hero-next','');
+  next.setAttribute('aria-label','Next photo');
+  next.textContent='→';
+  const toggle=document.createElement('button');
+  toggle.type='button';
+  toggle.setAttribute('data-hero-toggle','');
+  controls.append(previous,dots,next,toggle);
+  heroCarousel.replaceChildren(note,slideLink,caption,controls);
+}
+const imageSlides=[
+  {image:'/images/photography/stock-office-box.webp',alt:'Boxed workplace supplies ready for an office',category:'Supply · Office essentials',title:'Everyday supplies, brought together.',href:'/office-supplies/'},
+  {image:'/images/photography/computer.webp',alt:'Computer and printer workspace',category:'Supply · Computer essentials',title:'The essentials behind a productive team.',href:'/computer-consumables/'},
+  {image:'/images/photography/printing.webp',alt:'Printed materials prepared for a business brief',category:'Print · Business printing',title:'Make your next print run stand out.',href:'/bulk-printing/'},
+  {image:'/images/photography/apparel.webp',alt:'Apparel for a corporate branding enquiry',category:'Brand · Corporate identity',title:'Put your organisation’s identity to work.',href:'/branding/'}
+];
+let carouselSlides=imageSlides;
+let carouselActive=0;
+let carouselTimer=null;
+let carouselTransition=null;
+let carouselPaused=visualEditorMode||window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let homePageImage='';
+const showHeroSlide=index=>{
+  if(!heroCarousel||!carouselSlides.length)return;
+  const image=heroCarousel.querySelector('[data-hero-slide-image]');
+  const slideLink=heroCarousel.querySelector('[data-hero-slide-link]');
+  const slideMore=heroCarousel.querySelector('[data-hero-slide-more]');
+  const category=heroCarousel.querySelector('[data-hero-slide-category]');
+  const title=heroCarousel.querySelector('[data-hero-slide-title]');
+  const dots=heroCarousel.querySelector('[data-hero-dots]');
+  carouselActive=(index+carouselSlides.length)%carouselSlides.length;
+  const slide=carouselSlides[carouselActive];
+  image.classList.add('is-changing');
+  window.clearTimeout(carouselTransition);
+  const renderSlide=()=>{
+    image.src=siteImage(slide.image);
+    image.alt=slide.alt;
+    slideLink.href=slide.href;
+    slideMore.href=slide.href;
+    category.textContent=slide.category;
+    title.textContent=slide.title;
+    image.classList.remove('is-changing');
+  };
+  if(visualEditorMode)renderSlide();
+  else carouselTransition=window.setTimeout(renderSlide,150);
+  for(const [dotIndex,button] of [...dots.children].entries()){
+    button.setAttribute('aria-current',String(dotIndex===carouselActive));
+    button.setAttribute('aria-label','Show photo '+(dotIndex+1)+' of '+carouselSlides.length);
+  }
+};
+const setHeroPaused=nextPaused=>{
+  if(!heroCarousel)return;
+  const pauseButton=heroCarousel.querySelector('[data-hero-toggle]');
+  carouselPaused=nextPaused;
+  pauseButton.setAttribute('aria-pressed',String(carouselPaused));
+  pauseButton.setAttribute('aria-label',carouselPaused?'Play photo slideshow':'Pause photo slideshow');
+  pauseButton.textContent=carouselPaused?'▶':'Ⅱ';
+  window.clearInterval(carouselTimer);
+  if(!carouselPaused&&carouselSlides.length>1)carouselTimer=window.setInterval(()=>showHeroSlide(carouselActive+1),5500);
+};
+const startHeroCarousel=featuredProducts=>{
+  if(!heroCarousel)return;
+  const dots=heroCarousel.querySelector('[data-hero-dots]');
+  const productSlides=featuredProducts.map(product=>({
+    image:imageUrl(product.image),
+    alt:product.name,
+    category:'Featured · '+(product.page==='office-supplies'?'Office essentials':product.page.replaceAll('-',' ')),
+    title:product.name,
+    href:'/'+encodeURIComponent(product.page)+'/'
+  }));
+  carouselSlides=homePageImage
+    ?[{image:imageUrl(homePageImage),alt:'Featured Esicom Suppliers photo',category:'ESICOM · SUPPLY. PRINT. BRAND.',title:'The details that keep your workday moving.',href:'/office-supplies/'},...(productSlides.length?productSlides:imageSlides)]
+    :productSlides.length?productSlides:imageSlides;
+  dots.replaceChildren(...carouselSlides.map((slide,index)=>{
+    const button=document.createElement('button');
+    button.type='button';
+    button.setAttribute('aria-label','Show photo '+(index+1)+' of '+carouselSlides.length);
+    button.setAttribute('aria-current',String(index===0));
+    button.addEventListener('click',()=>showHeroSlide(index));
+    return button;
+  }));
+  showHeroSlide(0);
+  setHeroPaused(carouselPaused);
+};
+if(heroCarousel){
+  heroCarousel.querySelector('[data-hero-previous]').addEventListener('click',()=>showHeroSlide(carouselActive-1));
+  heroCarousel.querySelector('[data-hero-next]').addEventListener('click',()=>showHeroSlide(carouselActive+1));
+  heroCarousel.querySelector('[data-hero-toggle]').addEventListener('click',()=>setHeroPaused(!carouselPaused));
+  heroCarousel.addEventListener('mouseenter',()=>window.clearInterval(carouselTimer));
+  heroCarousel.addEventListener('mouseleave',()=>{if(!carouselPaused&&carouselSlides.length>1)carouselTimer=window.setInterval(()=>showHeroSlide(carouselActive+1),5500)});
+}
+startHeroCarousel([]);
 const productCard=product=>{
   const article=document.createElement('article');
   article.className='card';
+  article.dataset.editorKey='product-'+product.slug;
   const link=document.createElement('a');
   link.href='/'+encodeURIComponent(product.page)+'/';
   const image=document.createElement('img');
@@ -190,11 +547,51 @@ const productCard=product=>{
   article.append(link);
   return article;
 };
+const editableSection=section=>{
+  const wrapper=document.createElement('section');
+  wrapper.className='section editable-section';
+  wrapper.dataset.editorKey='section-'+section.id;
+  const content=document.createElement('div');
+  content.className='wrap editable-section-card';
+  if(section.image){
+    const image=document.createElement('img');
+    image.src=imageUrl(section.image);
+    image.alt=section.title;
+    image.loading='lazy';
+    image.decoding='async';
+    content.append(image);
+  }
+  const copy=document.createElement('div');
+  copy.className='editable-section-copy';
+  const heading=document.createElement('h2');
+  heading.textContent=section.title;
+  copy.append(heading);
+  if(section.body){
+    const body=document.createElement('p');
+    body.textContent=section.body;
+    copy.append(body);
+  }
+  if(section.button_text&&section.button_url){
+    const button=document.createElement('a');
+    button.className='btn btn-primary';
+    button.href=section.button_url;
+    button.textContent=section.button_text;
+    copy.append(button);
+  }
+  content.append(copy);
+  wrapper.append(content);
+  return wrapper;
+};
 const loadSiteContent=async()=>{
   if(!main)return;
   const response=await fetch(apiBase+'/api/site-content/',{headers:{'Accept':'application/json'},cache:'no-store'});
   if(!response.ok)throw new Error('Site content service returned HTTP '+response.status);
   const content=await response.json();
+  photoOverrides=content.photos||{};
+  document.querySelectorAll('img[src]').forEach(image=>{
+    const source=image.getAttribute('src');
+    if(source&&photoOverrides[source])image.src=imageUrl(photoOverrides[source]);
+  });
   const page=content.pages?.[pageKey];
   if(page){
     const eyebrow=main.querySelector('[data-copy-eyebrow]');
@@ -211,14 +608,20 @@ const loadSiteContent=async()=>{
         highlight.hidden=!page.highlight;
       }else heading.textContent=page.title;
     }
-    const image=main.querySelector('[data-copy-image]');
-    if(image&&page.image)image.src=imageUrl(page.image);
+    if(page.image){
+      if(pageKey==='home')homePageImage=page.image;
+      else{
+        const heroImage=main.querySelector('[data-copy-image]');
+        if(heroImage)heroImage.src=imageUrl(page.image);
+      }
+    }
   }
   const products=Array.isArray(content.products)?content.products:[];
   if(pageKey==='home'){
     const featured=products.filter(product=>product.featured);
     const container=main.querySelector('[data-featured-products]');
-    if(container&&featured.length)container.replaceChildren(...featured.map(productCard));
+    if(container)container.replaceChildren(...featured.map(productCard));
+    startHeroCarousel(featured);
   }else{
     const categoryProducts=products.filter(product=>product.page===pageKey);
     const section=main.querySelector('[data-category-products]');
@@ -228,6 +631,11 @@ const loadSiteContent=async()=>{
       section.hidden=false;
     }
   }
+  const sections=(Array.isArray(content.sections)?content.sections:[])
+    .filter(section=>section.page===pageKey)
+    .map(editableSection);
+  main.append(...sections);
+  applyVisualEdits(content.visual_edits||[]);
 };
 loadSiteContent().catch(error=>{
   console.info('Site editor is not connected; showing the built-in page content.',error);
@@ -416,7 +824,7 @@ def header(path):
     return f'''<a class="skip-link" href="#main-content">Skip to main content</a><div class="topline"><div class="wrap"><span>SUPPLY. PRINT. BRAND.</span><span>Chaka Place Building · Nairobi, Kenya &nbsp; | &nbsp; <a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a></span></div></div><header class="header"><div class="wrap navrow"><a class="brand" href="/" aria-label="Esicom Suppliers home"><span class="brand-mark">E.</span><span><span class="brand-name">ESICOM</span><span class="brand-sub">Suppliers</span></span></a><nav class="navlinks" aria-label="Main navigation">{links}</nav><div class="nav-actions"><a class="btn btn-light catalogue-btn" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Catalogue ↓</a><a class="btn btn-primary quote-btn" href="/contact/">Request a quote ↗</a><button class="menu-btn" data-menu-button aria-controls="mobile-navigation" aria-expanded="false" aria-label="Open navigation">☰</button></div></div><nav class="mobile-nav" id="mobile-navigation" data-mobile-nav aria-label="Mobile navigation">{links}<a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Download product catalogue (PDF)</a><a href="/contact/">Request a quote ↗</a></nav></header>'''
 
 def footer():
-    return '''<footer class="footer"><div class="wrap"><div class="footer-grid"><div><a class="brand" href="/" style="color:white"><span class="brand-mark" style="background:#fff;color:#10243d">E.</span><span><span class="brand-name">ESICOM</span><span class="brand-sub" style="color:#b9c8d8">Suppliers</span></span></a><p style="max-width:290px;line-height:1.8">Office essentials, computer consumables, bulk printing and corporate branding.</p><p style="font:800 18px Manrope,sans-serif;color:white">SUPPLY. PRINT. BRAND.</p></div><div><h3>Products</h3><div class="footer-links"><a href="/office-supplies/">Office supplies</a><a href="/paper-filing/">Paper & filing</a><a href="/computer-consumables/">Computer consumables</a><a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Product catalogue (PDF)</a></div></div><div><h3>Services</h3><div class="footer-links"><a href="/bulk-printing/">Bulk printing</a><a href="/branding/">Corporate branding</a><a href="/business-cards/">Business cards</a><a href="/branded-apparel/">Branded apparel</a><a href="/diaries-asset-tags/">Diaries & asset tags</a><a href="/send-file/">Send a file</a><a href="/file-qr/">Print the file QR</a></div></div><div><h3>Contact</h3><div class="footer-links"><a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a><a href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20have%20an%20enquiry." target="_blank" rel="noopener noreferrer">WhatsApp · 0728 942 669</a><p>Chaka Place Building,<br>Arwings Kodhek Road,<br>Nairobi, Kenya</p><a href="https://www.google.com/maps/search/?api=1&query=Chaka+Place+Building%2C+Arwings+Kodhek+Road%2C+Nairobi%2C+Kenya" target="_blank" rel="noopener noreferrer">Open location in Maps ↗</a><a href="/admin/" rel="nofollow">Staff content editor ↗</a></div></div></div><div class="footer-bottom"><span>© <span data-year></span> Esicom Suppliers. All rights reserved.</span><span>Product availability and quotations confirmed on enquiry.</span></div></div></footer><a class="whatsapp" href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20would%20like%20to%20make%20an%20enquiry." target="_blank" rel="noopener noreferrer" aria-label="Chat with Esicom Suppliers on WhatsApp">◉ WhatsApp us</a><script>document.querySelector('[data-year]').textContent=new Date().getFullYear()</script><script src="/site.js?v=2" defer></script>'''
+    return '''<footer class="footer"><div class="wrap"><div class="footer-grid"><div><a class="brand" href="/" style="color:white"><span class="brand-mark" style="background:#fff;color:#10243d">E.</span><span><span class="brand-name">ESICOM</span><span class="brand-sub" style="color:#b9c8d8">Suppliers</span></span></a><p style="max-width:290px;line-height:1.8">Office essentials, computer consumables, bulk printing and corporate branding.</p><p style="font:800 18px Manrope,sans-serif;color:white">SUPPLY. PRINT. BRAND.</p></div><div><h3>Products</h3><div class="footer-links"><a href="/office-supplies/">Office supplies</a><a href="/paper-filing/">Paper & filing</a><a href="/computer-consumables/">Computer consumables</a><a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Product catalogue (PDF)</a></div></div><div><h3>Services</h3><div class="footer-links"><a href="/bulk-printing/">Bulk printing</a><a href="/branding/">Corporate branding</a><a href="/business-cards/">Business cards</a><a href="/branded-apparel/">Branded apparel</a><a href="/diaries-asset-tags/">Diaries & asset tags</a><a href="/send-file/">Send a file</a><a href="/file-qr/">Print the file QR</a></div></div><div><h3>Contact</h3><div class="footer-links"><a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a><a href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20have%20an%20enquiry." target="_blank" rel="noopener noreferrer">WhatsApp · 0728 942 669</a><p>Chaka Place Building,<br>Arwings Kodhek Road,<br>Nairobi, Kenya</p><a href="https://www.google.com/maps/search/?api=1&query=Chaka+Place+Building%2C+Arwings+Kodhek+Road%2C+Nairobi%2C+Kenya" target="_blank" rel="noopener noreferrer">Open location in Maps ↗</a><a href="/admin/" rel="nofollow">Staff content editor ↗</a></div></div></div><div class="footer-bottom"><span>© <span data-year></span> Esicom Suppliers. All rights reserved.</span><span>Product availability and quotations confirmed on enquiry.</span></div></div></footer><a class="whatsapp" href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20would%20like%20to%20make%20an%20enquiry." target="_blank" rel="noopener noreferrer" aria-label="Chat with Esicom Suppliers on WhatsApp">◉ WhatsApp us</a><script>document.querySelector('[data-year]').textContent=new Date().getFullYear()</script><script src="/site.js?v=5" defer></script>'''
 
 def catalogue_callout():
     return '<div class="catalogue-callout"><div><strong>Prefer a quick overview?</strong><p>Download the product and services catalogue as a PDF.</p></div><a class="btn btn-primary" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Download catalogue ↓</a></div>'
@@ -432,7 +840,7 @@ def home_content():
     products=card('/office-supplies/','/images/photography/stock-boxed-pens.webp','Packaged pen','A real packaged pen. Ask us about the pens and everyday stationery your team needs.',credit='<a href="https://commons.wikimedia.org/wiki/File:Colorex_in_Verpackung.jpg" target="_blank" rel="noopener noreferrer">Photo: Oliver Laumann · CC BY-SA 4.0</a>')+card('/computer-consumables/','/images/photography/computer.webp','Computer consumables','Toners, cartridges and computer essentials. Tell us your printer model.')+card('/paper-filing/','/images/photography/stock-copy-paper.webp','Copy paper by the ream','A real photo of copy-paper reams. Ask us about paper sizes and quantities.',credit='<a href="https://commons.wikimedia.org/wiki/File:6_reams_of_paper_stacked_on_the_floor.jpg" target="_blank" rel="noopener noreferrer">Photo: Sage Ross · CC BY-SA 3.0</a>')
     services='''<a class="service-feature" href="/bulk-printing/"><img src="/images/photography/printing.webp" alt="Printed pages prepared for a business print job" loading="lazy"><div><h3>Bulk printing</h3><p>Business documents and printed materials, planned around your brief.</p><span class="link" style="color:#fff">Explore printing</span></div></a><a class="service-feature" href="/branding/"><img src="/images/photography/apparel.webp" alt="Plain shirt ready for a branded apparel enquiry" loading="lazy"><div><h3>Corporate branding</h3><p>Business cards, apparel, diaries and the details that carry your identity.</p><span class="link" style="color:#fff">Explore branding</span></div></a><a class="service-feature" href="/about/"><img src="/images/photography/meeting-room.webp" alt="Bright modern meeting room" loading="lazy"><div><h3>One helpful point of contact</h3><p>Office supplies, printing and branding brought together in Nairobi.</p><span class="link" style="color:#fff">Get to know Esicom</span></div></a>'''
     branded=card('/business-cards/','/images/photography/printing.webp','Business cards','Printed details that help your team make a consistent first impression.')+card('/branded-apparel/','/images/photography/apparel.webp','Branded apparel','An easy way to bring your team’s identity together.')+card('/diaries-asset-tags/','/images/photography/stationery.webp','Diaries & asset tags','Practical branded stationery and identification enquiries.')
-    return f'''<main><section class="hero"><div class="wrap hero-grid"><div><div class="eyebrow" data-copy-eyebrow>A Nairobi supplier for the workday</div><h1 data-copy-heading>Everything your office<br><span data-copy-highlight>needs.</span></h1><p class="lead" data-copy-intro>Everyday stationery, printing supplies and branded merchandise. Tell us what you need; we’ll take it from there.</p><div class="actions"><a class="btn btn-primary" href="/contact/">Tell us what you need ↗</a><a class="btn btn-light" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Browse the catalogue ↓</a></div><div style="margin-top:25px"><span class="mockup-label">Chaka Place · Nairobi, Kenya</span></div></div><div class="hero-visual"><div class="floating-note">Your local business supplier</div><img data-copy-image src="/images/photography/meeting-room.webp" alt="Sunlit contemporary meeting room" fetchpriority="high" decoding="async"><div class="visual-caption">Office essentials. Printing. Your brand.</div></div></div></section><section class="strip"><div class="wrap strip-grid"><div class="strip-item"><b>01</b><span>Office & workplace</span></div><div class="strip-item"><b>02</b><span>Computer essentials</span></div><div class="strip-item"><b>03</b><span>Business printing</span></div><div class="strip-item"><b>04</b><span>Corporate branding</span></div></div></section><section class="section"><div class="wrap"><div class="section-head"><div><div class="eyebrow">SUPPLY · THE EVERYDAY ESSENTIALS</div><h2>The things every office runs on.</h2></div><p>Boxes of pens, reams of paper and the essentials your team reaches for every day. Tell us what you need and we’ll put together a quote.</p></div><div class="cards" data-featured-products>{products}</div>{catalogue_callout()}</div></section><section class="section dark"><div class="wrap"><div class="section-head"><div><div class="eyebrow">PRINT · BRAND · Bring your brief</div><h2>Print, paper and branded merchandise.</h2></div><p>Send us your artwork, list or logo. We’ll help you work through the details.</p></div><div class="service-panel premium-services">{services}</div></div></section><section class="section white"><div class="wrap"><div class="section-head"><div><div class="eyebrow">BRAND · THE LITTLE THINGS</div><h2>Put your name on something useful.</h2></div><p>From shirts and diaries to everyday stationery, ask us about branded items for your team.</p></div><div class="cards">{branded}</div></div></section><section class="section"><div class="wrap"><div class="cta-band"><div><div class="eyebrow">A simpler next step</div><h2>Have a list or a logo?</h2><p style="margin:0;color:var(--muted)">Send it over. We’ll help you take it from there.</p></div><a class="btn btn-primary" href="/contact/">Start a conversation ↗</a></div></div></section></main>'''
+    return f'''<main><section class="hero"><div class="wrap hero-grid"><div><div class="eyebrow" data-copy-eyebrow>A Nairobi supplier for the workday</div><h1 data-copy-heading>Everything your office<br><span data-copy-highlight>needs.</span></h1><p class="lead" data-copy-intro>Everyday stationery, printing supplies and branded merchandise. Tell us what you need; we’ll take it from there.</p><div class="actions"><a class="btn btn-primary" href="/contact/">Tell us what you need ↗</a><a class="btn btn-light" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Browse the catalogue ↓</a></div><div style="margin-top:25px"><span class="mockup-label">Chaka Place · Nairobi, Kenya</span></div></div><div class="hero-visual"><div class="floating-note">Your local business supplier</div><img data-copy-image src="/images/photography/workspace.webp" alt="Bright, organized office workspace" fetchpriority="high" decoding="async"><div class="visual-caption">Office essentials. Printing. Your brand.</div></div></div></section><section class="strip"><div class="wrap strip-grid"><div class="strip-item"><b>01</b><span>Office & workplace</span></div><div class="strip-item"><b>02</b><span>Computer essentials</span></div><div class="strip-item"><b>03</b><span>Business printing</span></div><div class="strip-item"><b>04</b><span>Corporate branding</span></div></div></section><section class="section"><div class="wrap"><div class="section-head"><div><div class="eyebrow">SUPPLY · THE EVERYDAY ESSENTIALS</div><h2>The things every office runs on.</h2></div><p>Boxes of pens, reams of paper and the essentials your team reaches for every day. Tell us what you need and we’ll put together a quote.</p></div><div class="cards" data-featured-products>{products}</div>{catalogue_callout()}</div></section><section class="section dark"><div class="wrap"><div class="section-head"><div><div class="eyebrow">PRINT · BRAND · Bring your brief</div><h2>Print, paper and branded merchandise.</h2></div><p>Send us your artwork, list or logo. We’ll help you work through the details.</p></div><div class="service-panel premium-services">{services}</div></div></section><section class="section white"><div class="wrap"><div class="section-head"><div><div class="eyebrow">BRAND · THE LITTLE THINGS</div><h2>Put your name on something useful.</h2></div><p>From shirts and diaries to everyday stationery, ask us about branded items for your team.</p></div><div class="cards">{branded}</div></div></section><section class="section"><div class="wrap"><div class="cta-band"><div><div class="eyebrow">A simpler next step</div><h2>Have a list or a logo?</h2><p style="margin:0;color:var(--muted)">Send it over. We’ll help you take it from there.</p></div><a class="btn btn-primary" href="/contact/">Start a conversation ↗</a></div></div></section></main>'''
 
 def detail_content(path,data):
     items=data.get('items',[])
@@ -458,7 +866,7 @@ def page_html(path,data):
     desc=esc(data['intro'])
     page_key='home' if path=='/' else path.strip('/')
     content=content.replace('<main>','<main id="main-content" tabindex="-1" data-content-page="'+page_key+'">',1)
-    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="{NAVY}"><meta name="description" content="{desc}"><meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{desc}"><title>{esc(title)}</title><link rel="stylesheet" href="/styles.css"><script src="/site-config.js?v=2"></script></head><body>{header(path)}{content}{footer()}</body></html>'''
+    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="{NAVY}"><meta name="description" content="{desc}"><meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{desc}"><title>{esc(title)}</title><link rel="stylesheet" href="/styles.css?v=4"><script src="/site-config.js?v=3"></script></head><body>{header(path)}{content}{footer()}</body></html>'''
 
 def main():
     if DIST.exists(): shutil.rmtree(DIST)
@@ -468,6 +876,15 @@ def main():
     if (ASSETS/'site-config.js').is_file(): shutil.copy2(ASSETS/'site-config.js', DIST/'site-config.js')
     if ASSETS.exists():
         shutil.copytree(ASSETS,DIST,dirs_exist_ok=True)
+    api_base=os.environ.get('ESICOM_API_BASE_URL','').strip().rstrip('/')
+    if api_base:
+        parsed_api_base=urlsplit(api_base)
+        if parsed_api_base.scheme!='https' or not parsed_api_base.netloc or parsed_api_base.path not in ('','/') or parsed_api_base.query or parsed_api_base.fragment:
+            raise SystemExit('BUILD FAILED: ESICOM_API_BASE_URL must be an HTTPS origin, such as https://esicom-api.onrender.com')
+        (DIST/'site-config.js').write_text(
+            'window.ESICOM_API_BASE_URL = '+json.dumps(api_base)+';\n',
+            encoding='utf-8',
+        )
     for path,data in PAGES.items():
         folder=DIST if path=='/' else DIST/path.strip('/')
         folder.mkdir(parents=True,exist_ok=True)

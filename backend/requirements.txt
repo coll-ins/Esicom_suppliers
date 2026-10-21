@@ -7,3 +7,5 @@ Pillow>=11,<13
 pdf2docx>=0.5.10,<0.6
 PyMuPDF>=1.26.7,<2
 qrcode[pil]>=8,<9
+redis>=5,<7
+whitenoise>=6.8,<7
