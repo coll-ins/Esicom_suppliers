@@ -1,0 +1,2331 @@
+﻿
+===== backend\quotes\models.py =====
+
+from datetime import timedelta
+from pathlib import Path
+import re
+from uuid import uuid4
+from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator, RegexValidator
+from django.db import models
+from django.utils.text import slugify
+from django.utils import timezone
+
+MAX_IMAGE_SIZE = 8 * 1024 * 1024
+
+PAGE_CHOICES = [
+    ('home', 'Home page'),
+    ('office-supplies', 'Office supplies'),
+    ('computer-consumables', 'Computer consumables'),
+    ('bulk-printing', 'Bulk printing'),
+    ('branding', 'Corporate branding'),
+    ('about', 'About Esicom'),
+    ('contact', 'Contact'),
+    ('paper-filing', 'Paper & filing'),
+    ('business-cards', 'Business cards'),
+    ('branded-apparel', 'Branded apparel'),
+    ('diaries-asset-tags', 'Diaries & asset tags'),
+]
+
+VISUAL_PAGE_CHOICES = [('global', 'Site header and footer'), *PAGE_CHOICES]
+
+PRODUCT_PAGE_CHOICES = [
+    page for page in PAGE_CHOICES
+    if page[0] not in {'home', 'about', 'contact'}
+]
+
+SITE_PHOTO_CHOICES = [
+    ('/images/photography/apparel.webp', 'Branded apparel photo'),
+    ('/images/photography/boxed-supplies.jpg', 'Boxed office supplies photo'),
+    ('/images/photography/computer.webp', 'Computer workspace photo'),
+    ('/images/photography/meeting-room.webp', 'Meeting room photo'),
+    ('/images/photography/notebook.webp', 'Notebook photo'),
+    ('/images/photography/printing.webp', 'Printing photo'),
+    ('/images/photography/stationery-box.jpg', 'Stationery box photo'),
+    ('/images/photography/stationery.webp', 'Stationery photo'),
+    ('/images/photography/stock-boxed-pens.webp', 'Packaged pens photo'),
+    ('/images/photography/stock-copy-paper.webp', 'Copy paper photo'),
+    ('/images/photography/stock-office-box.webp', 'Office supplies hero photo'),
+    ('/images/photography/workspace.webp', 'Office workspace photo'),
+]
+
+
+def validate_image_size(image):
+    if image.size > MAX_IMAGE_SIZE:
+        raise ValidationError('Images must be 8 MB or smaller.')
+
+
+def content_image_path(instance, filename):
+    extension = Path(filename).suffix.lower()
+    if isinstance(instance, CatalogItem):
+        return f'catalog/{instance.category}/{uuid4().hex}{extension}'
+    return f'pages/{uuid4().hex}{extension}'
+
+
+class PageContent(models.Model):
+    page = models.CharField(max_length=40, choices=PAGE_CHOICES, unique=True)
+    eyebrow = models.CharField(max_length=100)
+    title = models.CharField(max_length=180)
+    highlight = models.CharField(max_length=80, blank=True)
+    intro = models.TextField(max_length=500)
+    hero_image = models.ImageField(
+        upload_to=content_image_path,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']), validate_image_size],
+        help_text='Optional. Upload an authentic Esicom photo to replace the stock image.',
+    )
+    is_published = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['page']
+        verbose_name = 'website page'
+        verbose_name_plural = 'website pages'
+
+    def __str__(self):
+        return self.get_page_display()
+
+    def save(self, *args, **kwargs):
+        old_name = None
+        if self.pk:
+            old_name = PageContent.objects.filter(pk=self.pk).values_list('hero_image', flat=True).first()
+        super().save(*args, **kwargs)
+        if old_name and old_name != self.hero_image.name:
+            self.hero_image.storage.delete(old_name)
+
+    def delete(self, *args, **kwargs):
+        if self.hero_image:
+            self.hero_image.delete(save=False)
+        return super().delete(*args, **kwargs)
+
+
+class CatalogItem(models.Model):
+    page = models.CharField(max_length=40, choices=PRODUCT_PAGE_CHOICES)
+    name = models.CharField(max_length=120)
+    slug = models.SlugField(max_length=140, unique=True, blank=True)
+    description = models.CharField(max_length=280)
+    image = models.ImageField(
+        upload_to=content_image_path,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']), validate_image_size],
+        help_text='Upload a clear photo of the actual product or branded merchandise.',
+    )
+    is_featured = models.BooleanField(
+        default=True,
+        help_text='Featured products appear on the homepage as well as their category page.',
+    )
+    is_published = models.BooleanField(default=True)
+    display_order = models.PositiveSmallIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['display_order', 'name']
+        verbose_name = 'product / merchandise'
+        verbose_name_plural = 'products & merchandise'
+
+    def save(self, *args, **kwargs):
+        old_name = None
+        if self.pk:
+            old_name = CatalogItem.objects.filter(pk=self.pk).values_list('image', flat=True).first()
+        if not self.slug:
+            base_slug = slugify(self.name)[:140] or 'product'
+            candidate = base_slug
+            suffix = 2
+            while CatalogItem.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
+                ending = f'-{suffix}'
+                candidate = f'{base_slug[:140 - len(ending)]}{ending}'
+                suffix += 1
+            self.slug = candidate
+        super().save(*args, **kwargs)
+        if old_name and old_name != self.image.name:
+            self.image.storage.delete(old_name)
+
+    def __str__(self):
+        return self.name
+
+    def delete(self, *args, **kwargs):
+        self.image.delete(save=False)
+        return super().delete(*args, **kwargs)
+
+
+class SitePhoto(models.Model):
+    source_path = models.CharField(max_length=120, choices=SITE_PHOTO_CHOICES, unique=True)
+    image = models.ImageField(
+        upload_to=content_image_path,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']), validate_image_size],
+        help_text='Upload a JPG, PNG or WebP image no larger than 8 MB.',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['source_path']
+        verbose_name = 'website photo'
+        verbose_name_plural = 'website photos'
+
+    def __str__(self):
+        return self.get_source_path_display()
+
+    def save(self, *args, **kwargs):
+        old_name = None
+        if self.pk:
+            old_name = SitePhoto.objects.filter(pk=self.pk).values_list('image', flat=True).first()
+        super().save(*args, **kwargs)
+        if old_name and old_name != self.image.name:
+            self.image.storage.delete(old_name)
+
+    def delete(self, *args, **kwargs):
+        self.image.delete(save=False)
+        return super().delete(*args, **kwargs)
+
+
+class PageSection(models.Model):
+    page = models.CharField(max_length=40, choices=PAGE_CHOICES)
+    title = models.CharField(max_length=140)
+    body = models.TextField(max_length=1600, blank=True)
+    image = models.ImageField(
+        upload_to=content_image_path,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']), validate_image_size],
+        help_text='Optional. JPG, PNG or WebP, no larger than 8 MB.',
+    )
+    button_text = models.CharField(max_length=80, blank=True)
+    button_url = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text='Optional. Use a website path such as /contact/ or a full https:// URL.',
+    )
+    display_order = models.PositiveSmallIntegerField(default=0)
+    is_published = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['page', 'display_order', 'id']
+        verbose_name = 'extra page section'
+        verbose_name_plural = 'extra page sections'
+
+    def __str__(self):
+        return f'{self.get_page_display()} — {self.title}'
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        from django.core.validators import URLValidator
+
+        if self.button_url and not self.button_url.startswith('/'):
+            try:
+                URLValidator(schemes=['http', 'https'])(self.button_url)
+            except ValidationError as exc:
+                raise ValidationError({'button_url': 'Enter a website path or an http/https URL.'}) from exc
+        elif self.button_url.startswith('//'):
+            raise ValidationError({'button_url': 'Enter a website path beginning with one slash, not two.'})
+
+    def save(self, *args, **kwargs):
+        old_name = None
+        if self.pk:
+            old_name = PageSection.objects.filter(pk=self.pk).values_list('image', flat=True).first()
+        super().save(*args, **kwargs)
+        if old_name and old_name != self.image.name:
+            self.image.storage.delete(old_name)
+
+    def delete(self, *args, **kwargs):
+        if self.image:
+            self.image.delete(save=False)
+        return super().delete(*args, **kwargs)
+
+
+class VisualEdit(models.Model):
+    FONT_CHOICES = [
+        ('', 'Keep the website default'),
+        ('Manrope', 'Manrope'),
+        ('DM Sans', 'DM Sans'),
+        ('Georgia', 'Georgia'),
+        ('Arial', 'Arial'),
+        ('system-ui', 'System default'),
+    ]
+    page = models.CharField(max_length=40, choices=VISUAL_PAGE_CHOICES)
+    selector = models.CharField(max_length=1200)
+    text_value = models.TextField(blank=True)
+    text_enabled = models.BooleanField(default=False)
+    image = models.ImageField(
+        upload_to=content_image_path,
+        blank=True,
+        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']), validate_image_size],
+    )
+    font_family = models.CharField(max_length=30, choices=FONT_CHOICES, blank=True)
+    font_size = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(8), MaxValueValidator(96)],
+    )
+    text_color = models.CharField(
+        max_length=7,
+        blank=True,
+        validators=[RegexValidator(r'^#[0-9a-fA-F]{6}$', 'Enter a hex colour such as #183c35.')],
+    )
+    hidden = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['page', 'selector']
+        constraints = [
+            models.UniqueConstraint(fields=['page', 'selector'], name='unique_visual_edit_per_page_element'),
+        ]
+
+    def __str__(self):
+        return f'{self.get_page_display()} — {self.selector[:60]}'
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        allowed_selector = re.fullmatch(
+            r'(?:main\[data-content-page="(?P<main_page>[a-z0-9-]+)"\]|header|footer|\.topline)'
+            r'(?:(?: > [a-z][a-z0-9-]*:nth-of-type\([1-9]\d*\))|'
+            r'(?: \[data-editor-key="[a-z0-9-]+"\]))+',
+            self.selector,
+        )
+        if not allowed_selector:
+            raise ValidationError({'selector': 'Select an element from the visual preview.'})
+        main_page = allowed_selector.group('main_page')
+        if (main_page and main_page != self.page) or (not main_page and self.page != 'global'):
+            raise ValidationError({'page': 'This visual change belongs to a different page.'})
+
+    def save(self, *args, **kwargs):
+        old_name = None
+        if self.pk:
+            old_name = VisualEdit.objects.filter(pk=self.pk).values_list('image', flat=True).first()
+        self.full_clean()
+        super().save(*args, **kwargs)
+        if old_name and old_name != self.image.name:
+            self.image.storage.delete(old_name)
+
+    def delete(self, *args, **kwargs):
+        if self.image:
+            self.image.delete(save=False)
+        return super().delete(*args, **kwargs)
+
+
+class QuoteRequest(models.Model):
+    STATUS_CHOICES = [('new', 'New'), ('contacted', 'Contacted'), ('quoted', 'Quoted'), ('closed', 'Closed')]
+    name = models.CharField(max_length=120)
+    company = models.CharField(max_length=160, blank=True)
+    phone = models.CharField(max_length=40)
+    email = models.EmailField(blank=True)
+    needs = models.TextField(max_length=5000)
+    quantity = models.CharField(max_length=100, blank=True)
+    required_date = models.DateField(null=True, blank=True)
+    source = models.CharField(max_length=40, default='website')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='new')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    class Meta:
+        ordering = ['-created_at']
+    def __str__(self):
+        return f'{self.name} — {self.created_at:%Y-%m-%d %H:%M}'
+
+
+def submission_file_path(instance, filename):
+    safe_name = filename.replace('\\', '/').split('/')[-1]
+    return f'private/file-submissions/{instance.download_token}/{safe_name}'
+
+
+def file_submission_expiry():
+    return timezone.now() + timedelta(days=7)
+
+
+class FileSubmission(models.Model):
+    DELIVERY_CHOICES = [('email', 'Email attachment'), ('whatsapp', 'WhatsApp share')]
+    download_token = models.UUIDField(default=uuid4, unique=True, editable=False)
+    original_filename = models.CharField(max_length=255)
+    uploaded_file = models.FileField(upload_to=submission_file_path)
+    converted_file = models.FileField(upload_to=submission_file_path, blank=True)
+    delivery_method = models.CharField(max_length=12, choices=DELIVERY_CHOICES, default='email')
+    delivery_consent = models.BooleanField(default=False)
+    name = models.CharField(max_length=120, blank=True)
+    phone = models.CharField(max_length=40, blank=True)
+    note = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'file submission'
+        verbose_name_plural = 'file submissions'
+
+    def __str__(self):
+        return f'{self.original_filename} — {self.created_at:%Y-%m-%d %H:%M}'
+
+    def delete(self, *args, **kwargs):
+        for field in (self.uploaded_file, self.converted_file):
+            if field:
+                field.delete(save=False)
+        return super().delete(*args, **kwargs)
+
+===== backend\quotes\views.py =====
+
+import json
+import logging
+import mimetypes
+import re
+from io import BytesIO
+from datetime import date
+from pathlib import Path
+import qrcode
+from django.conf import settings
+from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from django.core.mail import EmailMessage, send_mail
+from django.http import FileResponse, Http404, HttpResponse, HttpResponseNotFound, JsonResponse
+from django.shortcuts import get_object_or_404, render
+from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from django.contrib.admin.views.decorators import staff_member_required
+from .file_conversion import convert_file
+from .models import CatalogItem, FileSubmission, PAGE_CHOICES, PageContent, PageSection, QuoteRequest, SitePhoto, VisualEdit
+logger = logging.getLogger(__name__)
+
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024
+MAX_EMAIL_ATTACHMENT_SIZE = 15 * 1024 * 1024
+MAX_UPLOADS_PER_HOUR = 200
+ALLOWED_UPLOAD_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.webp'}
+ALLOWED_IMAGE_CONVERSIONS = {'jpeg', 'png', 'webp'}
+
+
+def private_media_not_found(request, path):
+    return HttpResponseNotFound()
+
+
+@require_GET
+def public_media(request, path):
+    media_root = Path(settings.MEDIA_ROOT).resolve()
+    try:
+        file_path = (media_root / path).resolve(strict=True)
+        relative_path = file_path.relative_to(media_root)
+    except (OSError, ValueError):
+        raise Http404
+    if not relative_path.parts or relative_path.parts[0] not in {'catalog', 'pages'} or not file_path.is_file():
+        raise Http404
+
+    content_type = mimetypes.guess_type(file_path.name)[0] or 'application/octet-stream'
+    response = FileResponse(file_path.open('rb'), content_type=content_type)
+    response['Cache-Control'] = 'public, max-age=3600'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@require_GET
+def health(request):
+    return JsonResponse({'status': 'ok'})
+
+
+@require_GET
+def site_content(request):
+    pages = {}
+    for page in PageContent.objects.filter(is_published=True):
+        pages[page.page] = {
+            'eyebrow': page.eyebrow,
+            'title': page.title,
+            'highlight': page.highlight,
+            'intro': page.intro,
+            'image': page.hero_image.url if page.hero_image else '',
+        }
+    products = [{
+        'page': item.page,
+        'name': item.name,
+        'slug': item.slug,
+        'description': item.description,
+        'image': item.image.url,
+        'featured': item.is_featured,
+    } for item in CatalogItem.objects.filter(is_published=True).order_by('display_order', 'name')]
+    sections = [{
+        'id': section.pk,
+        'page': section.page,
+        'title': section.title,
+        'body': section.body,
+        'image': section.image.url if section.image else '',
+        'button_text': section.button_text,
+        'button_url': section.button_url,
+    } for section in PageSection.objects.filter(is_published=True)]
+    photos = {
+        photo.source_path: photo.image.url
+        for photo in SitePhoto.objects.all()
+    }
+    visual_edits = [{
+        'page': edit.page,
+        'selector': edit.selector,
+        'text': edit.text_value if edit.text_enabled else None,
+        'image': edit.image.url if edit.image else '',
+        'font_family': edit.font_family,
+        'font_size': edit.font_size,
+        'text_color': edit.text_color,
+        'hidden': edit.hidden,
+    } for edit in VisualEdit.objects.all()]
+    return JsonResponse({
+        'pages': pages,
+        'products': products,
+        'sections': sections,
+        'photos': photos,
+        'visual_edits': visual_edits,
+    })
+
+
+@staff_member_required
+@ensure_csrf_cookie
+def visual_editor(request):
+    selected_page = request.GET.get('page', 'home')
+    if selected_page not in dict(PAGE_CHOICES):
+        selected_page = 'home'
+    return render(request, 'quotes/visual_editor.html', {
+        'pages': PAGE_CHOICES,
+        'preview_url': settings.ESICOM_EDITOR_PREVIEW_URL,
+        'editor_origin': request.build_absolute_uri('/'),
+        'selected_page': selected_page,
+    })
+
+
+@staff_member_required
+@require_http_methods(['GET', 'POST', 'DELETE'])
+def visual_edit_api(request, page):
+    if page not in dict(PAGE_CHOICES):
+        return JsonResponse({'detail': 'Choose a website page from the editor.'}, status=404)
+
+    if request.method == 'GET':
+        edits = VisualEdit.objects.filter(page__in=[page, 'global'])
+        return JsonResponse({'edits': [{
+            'selector': edit.selector,
+            'text': edit.text_value if edit.text_enabled else '',
+            'text_enabled': edit.text_enabled,
+            'image': edit.image.url if edit.image else '',
+            'font_family': edit.font_family,
+            'font_size': edit.font_size or '',
+            'text_color': edit.text_color,
+            'hidden': edit.hidden,
+        } for edit in edits]})
+
+    selector = request.POST.get('selector', '') if request.method == 'POST' else request.GET.get('selector', '')
+    if request.content_type == 'application/json':
+        try:
+            payload = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'detail': 'The editor sent invalid data.'}, status=400)
+        selector = payload.get('selector', '')
+    else:
+        payload = request.POST
+
+    edit_page = 'global' if selector.startswith(('header >', 'footer >', '.topline >')) else page
+    if request.method == 'DELETE':
+        edit = get_object_or_404(VisualEdit, page=edit_page, selector=selector)
+        edit.delete()
+        return JsonResponse({'ok': True})
+
+    edit = VisualEdit.objects.filter(page=edit_page, selector=selector).first()
+    if edit is None:
+        edit = VisualEdit(page=edit_page, selector=selector)
+    edit.text_value = payload.get('text', '')
+    edit.text_enabled = str(payload.get('text_enabled', '')).lower() in {'true', '1', 'on'}
+    edit.font_family = payload.get('font_family', '')
+    font_size = payload.get('font_size', '')
+    try:
+        edit.font_size = int(font_size) if font_size else None
+    except (TypeError, ValueError):
+        return JsonResponse({'detail': 'Font size must be a number.'}, status=400)
+    edit.text_color = payload.get('text_color', '').strip()
+    edit.hidden = str(payload.get('hidden', '')).lower() in {'true', '1', 'on'}
+    if 'image' in request.FILES:
+        edit.image = request.FILES['image']
+    elif str(payload.get('remove_image', '')).lower() in {'true', '1', 'on'}:
+        edit.image = ''
+
+    try:
+        edit.save()
+    except ValidationError as error:
+        return JsonResponse({'detail': error.messages[0]}, status=400)
+
+    return JsonResponse({'ok': True})
+
+
+@staff_member_required
+@require_POST
+def create_page_section(request, page):
+    if page not in dict(PAGE_CHOICES):
+        return JsonResponse({'detail': 'Choose a website page from the editor.'}, status=404)
+
+    section = PageSection(
+        page=page,
+        title=request.POST.get('title', '').strip(),
+        body=request.POST.get('body', '').strip(),
+        button_text=request.POST.get('button_text', '').strip(),
+        button_url=request.POST.get('button_url', '').strip(),
+        display_order=(PageSection.objects.filter(page=page).order_by('-display_order')
+                       .values_list('display_order', flat=True).first() or 0) + 1,
+        is_published=True,
+    )
+    if 'image' in request.FILES:
+        section.image = request.FILES['image']
+    try:
+        section.full_clean()
+        section.save()
+    except ValidationError as error:
+        return JsonResponse({'detail': error.messages[0]}, status=400)
+    return JsonResponse({'ok': True, 'id': section.pk}, status=201)
+
+
+@require_GET
+def file_upload_qr(request):
+    target = f'{settings.ESICOM_PUBLIC_SITE_URL.rstrip("/")}/send-file/'
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=4)
+    qr.add_data(target)
+    qr.make(fit=True)
+    output = BytesIO()
+    qr.make_image(fill_color='#183c35', back_color='white').save(output, format='PNG')
+    response = HttpResponse(output.getvalue(), content_type='image/png')
+    response['Cache-Control'] = 'public, max-age=300'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+def _validate_upload(uploaded_file):
+    extension = Path(uploaded_file.name.replace('\\', '/')).suffix.lower()
+    if extension not in ALLOWED_UPLOAD_EXTENSIONS:
+        return None, 'Upload a PDF, JPG, PNG, or WebP file.'
+    if not uploaded_file.size:
+        return None, 'The selected file is empty.'
+    if uploaded_file.size > MAX_UPLOAD_SIZE:
+        return None, 'Files must be 50 MB or smaller.'
+
+    uploaded_file.seek(0)
+    signature = uploaded_file.read(5)
+    uploaded_file.seek(0)
+    if extension == '.pdf':
+        if not signature.startswith(b'%PDF-'):
+            return None, 'The selected file is not a valid PDF.'
+    else:
+        from PIL import Image, UnidentifiedImageError
+        try:
+            image = Image.open(uploaded_file)
+            image_format = image.format
+            image.verify()
+        except (OSError, UnidentifiedImageError, Image.DecompressionBombError):
+            return None, 'The selected image could not be opened.'
+        finally:
+            uploaded_file.seek(0)
+        expected = {'.jpg': 'JPEG', '.jpeg': 'JPEG', '.png': 'PNG', '.webp': 'WEBP'}[extension]
+        if image_format != expected:
+            return None, 'The file contents do not match its image extension.'
+    return extension, None
+
+
+def _client_ip(request):
+    forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR', '')
+    if forwarded_for:
+        return forwarded_for.rsplit(',', 1)[-1].strip()
+    return request.META.get('REMOTE_ADDR', 'unknown')
+
+
+@csrf_exempt
+@require_POST
+def create_file_submission(request):
+    ip = _client_ip(request)
+    key = f'esicom-file-upload:{ip}'
+    count = cache.get(key, 0)
+    if count >= MAX_UPLOADS_PER_HOUR:
+        return JsonResponse({'detail': 'Too many uploads from this connection. Please try again later.'}, status=429)
+    if request.POST.get('website', '').strip():
+        return JsonResponse({'ok': True}, status=201)
+    cache.set(key, count + 1, timeout=3600)
+    if request.POST.get('delivery_consent') != 'on':
+        return JsonResponse({'detail': 'Confirm that Esicom may receive this file using your selected delivery method.'}, status=400)
+
+    uploaded_file = request.FILES.get('file')
+    if uploaded_file is None:
+        return JsonResponse({'detail': 'Choose a file to upload.'}, status=400)
+    conversion = request.POST.get('conversion', '').strip().lower()
+    delivery_method = request.POST.get('delivery', 'email').strip().lower()
+    if delivery_method not in {'email', 'whatsapp'}:
+        return JsonResponse({'detail': 'Choose email or WhatsApp delivery.'}, status=400)
+    if delivery_method == 'email' and uploaded_file.size > MAX_EMAIL_ATTACHMENT_SIZE:
+        return JsonResponse({
+            'detail': 'Email attachments must be 15 MB or smaller. Choose WhatsApp to share larger files.'
+        }, status=413)
+    extension, error = _validate_upload(uploaded_file)
+    if error:
+        return JsonResponse({'detail': error}, status=400)
+
+    if conversion:
+        valid_conversion = (
+            conversion == 'docx' and extension == '.pdf'
+        ) or (
+            conversion in ALLOWED_IMAGE_CONVERSIONS and extension in {'.jpg', '.jpeg', '.png', '.webp'}
+        )
+        if not valid_conversion:
+            return JsonResponse({'detail': 'That conversion is not available for this file type.'}, status=400)
+
+    name = request.POST.get('name', '').strip()
+    phone = request.POST.get('phone', '').strip()
+    note = request.POST.get('note', '').strip()
+    if len(name) > 120 or len(phone) > 40 or len(note) > 500:
+        return JsonResponse({'detail': 'One of the contact fields is too long.'}, status=400)
+    if phone and not re.fullmatch(r'[+()\-\d\s.]{5,40}', phone):
+        return JsonResponse({'detail': 'Enter a valid phone number.'}, status=400)
+
+    original_name = uploaded_file.name.replace('\\', '/').split('/')[-1][:255]
+    submission = FileSubmission(
+        original_filename=original_name,
+        delivery_method=delivery_method,
+        delivery_consent=True,
+        name=name,
+        phone=phone,
+        note=note,
+    )
+    converted_path = None
+    try:
+        submission.uploaded_file.save(original_name, uploaded_file, save=False)
+        submission.save()
+        if conversion:
+            converted_path = convert_file(submission.uploaded_file.path, original_name, conversion)
+            converted_size = converted_path.stat().st_size
+            if converted_size > MAX_UPLOAD_SIZE:
+                converted_path.unlink(missing_ok=True)
+                raise ValueError('The converted file is larger than the 50 MB limit.')
+            if delivery_method == 'email' and converted_size > MAX_EMAIL_ATTACHMENT_SIZE:
+                converted_path.unlink(missing_ok=True)
+                raise ValueError('The converted file is too large to email as an attachment. Choose WhatsApp to share larger files.')
+            with converted_path.open('rb') as converted_file:
+                converted_contents = converted_file.read()
+            converted_path.unlink(missing_ok=True)
+            submission.converted_file.save(converted_path.name, ContentFile(converted_contents), save=False)
+        submission.save()
+    except ValueError as exc:
+        _discard_submission(submission, converted_path)
+        return JsonResponse({'detail': str(exc)}, status=422)
+    except Exception:
+        _discard_submission(submission, converted_path)
+        logger.exception('File submission processing failed.')
+        return JsonResponse({'detail': 'The file could not be processed. Please try again or send it without conversion.'}, status=500)
+
+    download_url = request.build_absolute_uri(f'/api/file-submissions/{submission.download_token}/download/')
+    if delivery_method == 'email':
+        subject = f'New Esicom file submission #{submission.pk}'
+        body = '\n'.join([
+            f'File submission: #{submission.pk}',
+            f'Original file: {original_name}',
+            f'Name: {name or "Not provided"}',
+            f'Phone: {phone or "Not provided"}',
+            f'Note: {note or "Not provided"}',
+            f'The uploaded file is attached. Private backup download link (available until staff deletes the submission): {download_url}',
+            f'Staff record: {request.build_absolute_uri(f"/admin/quotes/filesubmission/{submission.pk}/change/")}',
+        ])
+        attachment = submission.converted_file or submission.uploaded_file
+        email = EmailMessage(
+            subject,
+            body,
+            settings.DEFAULT_FROM_EMAIL,
+            [settings.ESICOM_ENQUIRY_EMAIL],
+        )
+        if settings.EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend':
+            logger.error('File submission %s was saved, but email delivery is not configured.', submission.pk)
+            return JsonResponse({
+                'detail': f'The file was saved (reference ES-F{submission.pk}), but email is not configured on this server. Select WhatsApp or configure SMTP.',
+                'saved': True,
+                'reference': submission.pk,
+            }, status=503)
+        try:
+            email.attach_file(attachment.path)
+            email.send(fail_silently=False)
+        except Exception:
+            logger.exception('File submission %s was saved but attachment email delivery failed.', submission.pk)
+            return JsonResponse({
+                'detail': f'The file was saved (reference ES-F{submission.pk}), but email delivery failed. Try WhatsApp sharing or try again.',
+                'saved': True,
+                'reference': submission.pk,
+            }, status=502)
+
+    return JsonResponse({
+        'ok': True,
+        'reference': submission.pk,
+        'filename': submission.converted_file.name and Path(submission.converted_file.name).name or original_name,
+        'converted': bool(submission.converted_file),
+        'delivery': delivery_method,
+        'download_url': f'/api/file-submissions/{submission.download_token}/download/',
+    }, status=201)
+
+
+def _discard_submission(submission, converted_path):
+    if converted_path and converted_path.exists():
+        converted_path.unlink()
+    if submission.pk:
+        submission.delete()
+        return
+    for file_field in (submission.uploaded_file, submission.converted_file):
+        if file_field:
+            file_field.delete(save=False)
+
+
+@require_GET
+def download_file_submission(request, token):
+    submission = get_object_or_404(FileSubmission, download_token=token)
+    file_field = submission.converted_file or submission.uploaded_file
+    return _file_response(file_field)
+
+
+def download_submission_attachment(request, pk, file_kind):
+    submission = get_object_or_404(FileSubmission, pk=pk)
+    if file_kind == 'original':
+        file_field = submission.uploaded_file
+    elif file_kind == 'converted' and submission.converted_file:
+        file_field = submission.converted_file
+    else:
+        raise Http404
+    return _file_response(file_field)
+
+
+def _file_response(file_field):
+    file_name = Path(file_field.name).name
+    content_type = mimetypes.guess_type(file_name)[0] or 'application/octet-stream'
+    response = FileResponse(file_field.open('rb'), as_attachment=True, filename=file_name, content_type=content_type)
+    response['Cache-Control'] = 'private, no-store'
+    response['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@csrf_exempt
+@require_POST
+def create_quote(request):
+    # Small IP-based throttle; configure a shared cache (e.g. Redis) for production multi-worker deployments.
+    ip = request.META.get('REMOTE_ADDR', 'unknown')
+    key = f'esicom-quote:{ip}'
+    count = cache.get(key, 0)
+    if count >= 8:
+        return JsonResponse({'detail': 'Too many enquiries from this connection. Please email us instead.'}, status=429)
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'detail': 'Please submit a valid enquiry.'}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({'detail': 'Please submit a valid enquiry.'}, status=400)
+    if str(payload.get('website', '')).strip():
+        return JsonResponse({'detail': 'Enquiry received.'}, status=200)
+    name = str(payload.get('name', '')).strip()
+    company = str(payload.get('company', '')).strip()
+    phone = str(payload.get('phone', '')).strip()
+    email = str(payload.get('email', '')).strip()
+    needs = str(payload.get('needs', '')).strip()
+    quantity = str(payload.get('quantity', '')).strip()
+    source = str(payload.get('source', 'website')).strip()[:40] or 'website'
+    if len(name) < 2 or len(name) > 120:
+        return JsonResponse({'detail': 'Enter your name (at least 2 characters).'}, status=400)
+    if not phone or len(phone) > 40 or not re.fullmatch(r'[+()\-\d\s.]{5,40}', phone):
+        return JsonResponse({'detail': 'Enter a valid phone number.'}, status=400)
+    if email and (len(email) > 254 or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email)):
+        return JsonResponse({'detail': 'Enter a valid email address.'}, status=400)
+    if len(needs) < 8 or len(needs) > 5000:
+        return JsonResponse({'detail': 'Please describe what you need (8–5000 characters).'}, status=400)
+    if len(company) > 160 or len(quantity) > 100:
+        return JsonResponse({'detail': 'One of the fields is too long.'}, status=400)
+    required_date = None
+    raw_date = str(payload.get('date', '')).strip()
+    if raw_date:
+        try:
+            required_date = date.fromisoformat(raw_date)
+        except ValueError:
+            return JsonResponse({'detail': 'Enter a valid required date.'}, status=400)
+    quote = QuoteRequest.objects.create(name=name, company=company, phone=phone, email=email, needs=needs, quantity=quantity, required_date=required_date, source=source)
+    cache.set(key, count + 1, timeout=3600)
+    subject = f'New Esicom website quotation request #{quote.pk}'
+    body = '\n'.join([
+        f'Enquiry reference: #{quote.pk}', f'Name: {name}', f'Company: {company or "Not provided"}',
+        f'Phone: {phone}', f'Email: {email or "Not provided"}', f'Quantity: {quantity or "Not provided"}',
+        f'Required date: {required_date or "Not provided"}', '', 'Request details:', needs,
+    ])
+    try:
+        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, [settings.ESICOM_ENQUIRY_EMAIL], fail_silently=False)
+    except Exception:
+        # Persist the enquiry even if email credentials or the mail server are not configured.
+        logger.exception('Quote request %s was saved but notification email failed.', quote.pk)
+    return JsonResponse({'ok': True, 'reference': quote.pk}, status=201)
+
+===== backend\quotes\admin.py =====
+
+from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
+from .models import CatalogItem, FileSubmission, PageContent, PageSection, QuoteRequest, SitePhoto
+
+admin.site.site_header = 'Esicom Suppliers — Website Editor'
+admin.site.site_title = 'Esicom Website Editor'
+admin.site.index_title = 'Manage your website content'
+
+
+@admin.register(SitePhoto)
+class SitePhotoAdmin(admin.ModelAdmin):
+    list_display = ('get_source_path_display', 'image_preview', 'updated_at')
+    readonly_fields = ('image_preview', 'updated_at')
+    fields = ('source_path', 'image', 'image_preview', 'updated_at')
+
+    @admin.display(description='Current photo')
+    def image_preview(self, obj):
+        if not obj or not obj.image:
+            return 'No photo uploaded'
+        return format_html(
+            '<img src="{}" alt="" style="max-width:180px;max-height:110px;object-fit:cover;border-radius:8px">',
+            obj.image.url,
+        )
+
+    def delete_queryset(self, request, queryset):
+        for photo in queryset:
+            photo.delete()
+
+
+@admin.register(PageSection)
+class PageSectionAdmin(admin.ModelAdmin):
+    list_display = ('title', 'page', 'is_published', 'display_order', 'updated_at')
+    list_filter = ('page', 'is_published')
+    search_fields = ('title', 'body')
+    list_editable = ('is_published', 'display_order')
+    readonly_fields = ('updated_at',)
+    fieldsets = (
+        ('What visitors will see', {
+            'fields': ('page', 'title', 'body', 'image'),
+            'description': 'Add an optional section to a page. Leave the photo blank if you only want text.',
+        }),
+        ('Optional button', {'fields': ('button_text', 'button_url')}),
+        ('Visibility and order', {'fields': ('is_published', 'display_order', 'updated_at')}),
+    )
+
+    def delete_queryset(self, request, queryset):
+        for section in queryset:
+            section.delete()
+
+
+@admin.register(PageContent)
+class PageContentAdmin(admin.ModelAdmin):
+    list_display = ('get_page_display', 'title', 'is_published', 'updated_at')
+    list_filter = ('is_published',)
+    search_fields = ('title', 'intro')
+    readonly_fields = ('updated_at',)
+    fieldsets = (
+        ('Page copy', {'fields': ('page', 'eyebrow', 'title', 'highlight', 'intro', 'is_published')}),
+        ('Page photo', {'fields': ('hero_image',)}),
+        ('Last updated', {'fields': ('updated_at',)}),
+    )
+
+    def delete_queryset(self, request, queryset):
+        for page in queryset:
+            page.delete()
+
+
+@admin.register(CatalogItem)
+class CatalogItemAdmin(admin.ModelAdmin):
+    list_display = ('name', 'page', 'is_featured', 'is_published', 'display_order', 'updated_at')
+    list_filter = ('page', 'is_featured', 'is_published')
+    search_fields = ('name', 'description', 'slug')
+    list_editable = ('is_featured', 'is_published', 'display_order')
+    prepopulated_fields = {'slug': ('name',)}
+    readonly_fields = ('updated_at',)
+    fieldsets = (
+        ('Product details', {'fields': ('name', 'slug', 'page', 'description', 'image')}),
+        ('Website placement', {'fields': ('is_featured', 'is_published', 'display_order')}),
+        ('Last updated', {'fields': ('updated_at',)}),
+    )
+
+    def delete_queryset(self, request, queryset):
+        for item in queryset:
+            item.delete()
+
+
+@admin.register(QuoteRequest)
+class QuoteRequestAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'name', 'company', 'phone', 'email', 'status')
+    list_filter = ('status', 'created_at')
+    search_fields = ('name', 'company', 'phone', 'email', 'needs')
+    readonly_fields = ('created_at', 'updated_at')
+    list_per_page = 30
+
+
+@admin.register(FileSubmission)
+class FileSubmissionAdmin(admin.ModelAdmin):
+    list_display = ('created_at', 'original_filename', 'delivery_method', 'name', 'phone')
+    list_filter = ('created_at',)
+    search_fields = ('original_filename', 'name', 'phone', 'note')
+    readonly_fields = ('created_at', 'delivery_consent', 'original_download', 'converted_download')
+    actions = None
+    fieldsets = (
+        ('Submission', {'fields': ('created_at', 'delivery_method', 'delivery_consent', 'original_filename', 'original_download', 'converted_download')}),
+        ('Contact details', {'fields': ('name', 'phone', 'note')}),
+    )
+    list_per_page = 30
+
+    @admin.display(description='Original file')
+    def original_download(self, obj):
+        url = reverse('file_submission_attachment', args=(obj.pk, 'original'))
+        return format_html('<a href="{}">Download original file</a>', url)
+
+    @admin.display(description='Converted file')
+    def converted_download(self, obj):
+        if not obj.converted_file:
+            return 'No converted file'
+        url = reverse('file_submission_attachment', args=(obj.pk, 'converted'))
+        return format_html('<a href="{}">Download converted file</a>', url)
+
+    def has_add_permission(self, request):
+        return False
+
+    def delete_queryset(self, request, queryset):
+        for submission in queryset.iterator():
+            submission.delete()
+
+===== backend\config\urls.py =====
+
+from django.contrib import admin
+from django.urls import path
+from quotes.views import (
+    create_file_submission,
+    create_page_section,
+    create_quote,
+    download_file_submission,
+    download_submission_attachment,
+    file_upload_qr,
+    health,
+    private_media_not_found,
+    public_media,
+    site_content,
+    visual_edit_api,
+    visual_editor,
+)
+
+urlpatterns = [
+    path('admin/file-submissions/<int:pk>/<str:file_kind>/', admin.site.admin_view(
+        download_submission_attachment
+    ), name='file_submission_attachment'),
+    path('admin/visual-editor/', visual_editor, name='visual_editor'),
+    path('admin/', admin.site.urls),
+    path('api/quote/', create_quote, name='create_quote'),
+    path('api/file-submissions/', create_file_submission, name='create_file_submission'),
+    path('api/file-submissions/<uuid:token>/download/', download_file_submission, name='download_file_submission'),
+    path('api/file-upload-qr/', file_upload_qr, name='file_upload_qr'),
+    path('api/health/', health, name='health'),
+    path('api/page-sections/<str:page>/', create_page_section, name='create_page_section'),
+    path('api/site-content/', site_content, name='site_content'),
+    path('api/visual-edits/<str:page>/', visual_edit_api, name='visual_edit_api'),
+    path('media/private/<path:path>', private_media_not_found, name='private_media_not_found'),
+    path('media/<path:path>', public_media, name='public_media'),
+]
+
+===== backend\quotes\templates\quotes\visual_editor.html =====
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>Visual website editor | Esicom Suppliers</title>
+  <style>
+    :root{color-scheme:light;--ink:#183c35;--green:#267a46;--gold:#b8894f;--paper:#f4f5ef;--line:#dce3d9;--muted:#64736b}
+    *{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 "DM Sans",Arial,sans-serif}
+    a{color:inherit}.topbar{height:66px;padding:0 22px;background:#15362f;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .brand{font-weight:800;letter-spacing:.12em}.top-actions{display:flex;align-items:center;gap:16px;font-size:13px}.top-actions a{text-decoration:none;color:#dce8dc}
+    .editor-layout{display:grid;grid-template-columns:minmax(330px,390px) minmax(0,1fr);height:calc(100vh - 66px)}
+    .inspector{background:#fffefa;border-right:1px solid var(--line);overflow:auto;padding:24px}
+    .eyebrow{color:var(--green);font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase}
+    h1{font:800 25px/1.2 Manrope,Arial,sans-serif;letter-spacing:-.04em;margin:7px 0 8px}
+    .help{color:var(--muted);margin:0 0 20px}.page-picker{display:grid;gap:7px;margin-bottom:18px}
+    label{font-weight:700;font-size:12px}.page-picker select,.control input:not([type=checkbox]):not([type=file]),.control textarea,.control select{
+      width:100%;margin-top:6px;min-height:40px;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:#fff;color:#183c35;font:inherit
+    }
+    .selection-card{padding:13px 14px;margin:0 0 16px;background:#f1f5ef;border:1px solid #dfe8dc;border-radius:11px}
+    .selection-card strong{display:block;font-size:13px}.selection-card span{color:var(--muted);font-size:11px;overflow-wrap:anywhere}
+    .empty-selection{color:var(--muted);font-size:12px}.control{display:grid;gap:8px;padding:15px 0;border-top:1px solid #e9ede7}
+    .control textarea{min-height:100px;resize:vertical}.check-row{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600}
+    .check-row input{accent-color:var(--green)}.image-preview{display:none;width:100%;max-height:175px;object-fit:cover;border-radius:9px;border:1px solid var(--line);margin-top:8px}
+    .color-row{display:grid;grid-template-columns:1fr 48px;gap:8px;align-items:end}.color-row input[type=color]{width:48px;height:40px;margin-top:6px;padding:3px;border:1px solid var(--line);border-radius:8px;background:#fff}
+    .button-row{display:flex;gap:9px;padding-top:16px}    .button{border:0;border-radius:999px;padding:11px 16px;font:700 12px Arial,sans-serif;cursor:pointer}
+    .primary{background:var(--green);color:white;flex:1}.secondary{background:#eff3ed;color:var(--ink)}.button:disabled{opacity:.55;cursor:wait}
+    .status{min-height:22px;margin:10px 0 0;color:var(--green);font-size:12px}.status.error{color:#a33427}
+    .preview-area{min-width:0;display:flex;flex-direction:column}.preview-toolbar{min-height:53px;background:#fffefa;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 18px;gap:10px}
+    .preview-toolbar strong{font-size:12px}.preview-toolbar span{font-size:11px;color:var(--muted)}
+    .preview-toolbar button{border:0;border-radius:999px;background:var(--green);color:#fff;padding:9px 14px;font-weight:700;cursor:pointer}
+    .preview-frame{border:0;width:100%;height:100%;background:#fff}
+    @media(max-width:850px){.editor-layout{grid-template-columns:1fr;height:auto}.inspector{order:2;border-right:0}.preview-area{height:72vh;order:1}.topbar{padding:0 14px}.top-actions{gap:9px}.top-actions a:first-child{display:none}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">ESICOM <span style="font-weight:500;letter-spacing:0">· Visual website editor</span></div>
+    <div class="top-actions"><a href="{{ preview_url }}/" target="_blank" rel="noopener">Open website</a><a href="/admin/">Back to content manager</a></div>
+  </header>
+  <main class="editor-layout">
+    <aside class="inspector">
+      <div class="eyebrow">Make it yours</div>
+      <h1>Edit the page as you see it</h1>
+      <p class="help">Choose a page, then click wording or a photo in the preview. The panel will show what you selected.</p>
+      <div class="page-picker">
+        <label for="page-picker">Website page
+          <select id="page-picker">
+            {% for value, label in pages %}
+              <option value="{{ value }}" {% if selected_page == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <div class="selection-card" id="selection-card">
+        <strong id="selection-name">Nothing selected yet</strong>
+        <span id="selection-path">Click any photo or text in the website preview.</span>
+      </div>
+      <p class="empty-selection" id="empty-selection">Your changes update the real page after you save. Add a new text or photo section here; product cards are managed in Products &amp; merchandise.</p>
+      <form id="section-form" hidden>
+        <div class="control">
+          <div class="eyebrow">Add to this page</div>
+          <label for="section-title">Section heading *</label>
+          <input id="section-title" name="title" required maxlength="140" placeholder="A short heading">
+          <label for="section-body">Words for your visitors</label>
+          <textarea id="section-body" name="body" maxlength="1600" placeholder="Write the message you want customers to see"></textarea>
+          <label for="section-image">Add a photo (optional)</label>
+          <input id="section-image" name="image" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+          <label for="section-button">Button wording (optional)</label>
+          <input id="section-button" name="button_text" maxlength="80" placeholder="For example: Contact us">
+          <label for="section-link">Where should the button go?</label>
+          <input id="section-link" name="button_url" maxlength="300" placeholder="/contact/ or https://example.com">
+          <div class="button-row"><button class="button primary" type="submit">Add section to page</button></div>
+        </div>
+      </form>
+      <form id="edit-form" hidden>
+        <div class="control" id="text-control">
+          <label for="text-value">Words on the selected item</label>
+          <textarea id="text-value" maxlength="2400"></textarea>
+          <label class="check-row"><input type="checkbox" id="text-enabled"> Replace the wording with this text</label>
+        </div>
+        <div class="control" id="image-control" hidden>
+          <label for="image-file">Replace this photo</label>
+          <input id="image-file" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+          <img class="image-preview" id="image-preview" alt="Selected image preview">
+          <label class="check-row"><input type="checkbox" id="remove-image"> Remove this photo change and restore its original</label>
+        </div>
+        <div class="control">
+          <label for="font-family">Font</label>
+          <select id="font-family">
+            <option value="">Keep website font</option>
+            <option value="Manrope">Manrope</option>
+            <option value="DM Sans">DM Sans</option>
+            <option value="Georgia">Georgia</option>
+            <option value="Arial">Arial</option>
+            <option value="system-ui">System default</option>
+          </select>
+          <label for="font-size">Text size (8–96 px)</label>
+          <input id="font-size" type="number" min="8" max="96" placeholder="Keep current size">
+          <div class="color-row">
+            <label for="text-color">Text colour
+              <input id="text-color" type="text" maxlength="7" placeholder="#183c35">
+            </label>
+            <input id="color-picker" type="color" aria-label="Choose text colour">
+          </div>
+        </div>
+        <div class="control">
+          <label class="check-row"><input type="checkbox" id="hidden"> Hide this item on the website</label>
+        </div>
+        <div class="button-row">
+          <button class="button primary" id="save-button" type="submit">Save changes</button>
+          <button class="button secondary" id="reset-button" type="button">Restore original</button>
+        </div>
+      </form>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </aside>
+    <section class="preview-area" aria-label="Website preview">
+      <div class="preview-toolbar"><strong>Live website preview</strong><span>Click wording or a photo to change it</span><button id="add-section-button" type="button">+ Add a section</button></div>
+      <iframe class="preview-frame" id="preview-frame" title="Clickable preview of the selected website page"></iframe>
+    </section>
+  </main>
+  <script>
+    (()=>{
+      const pagePicker=document.querySelector('#page-picker');
+      const frame=document.querySelector('#preview-frame');
+      const form=document.querySelector('#edit-form');
+      const sectionForm=document.querySelector('#section-form');
+      const addSectionButton=document.querySelector('#add-section-button');
+      const empty=document.querySelector('#empty-selection');
+      const status=document.querySelector('#status');
+      const imagePreview=document.querySelector('#image-preview');
+      const imageFile=document.querySelector('#image-file');
+      let selected=null;
+      let savedEdit=null;
+      let editsBySelector=new Map();
+      const previewBase="{{ preview_url|escapejs }}";
+      const editorOrigin="{{ editor_origin|escapejs }}";
+      const apiForPage=page=>'/api/visual-edits/'+encodeURIComponent(page)+'/';
+      const csrfToken=document.querySelector('meta[name="csrf-token"]').content;
+      const pageUrl=page=>{
+        const path=page==='home'?'/':'/'+page+'/';
+        return previewBase+path+'?editor=1&editor_origin='+encodeURIComponent(new URL(editorOrigin).origin);
+      };
+      const setStatus=(message,isError=false)=>{
+        status.textContent=message;
+        status.classList.toggle('error',isError);
+      };
+      const refreshFrame=()=>{frame.src=pageUrl(pagePicker.value)};
+      const loadPageEdits=async()=>{
+        const response=await fetch(apiForPage(pagePicker.value),{headers:{'Accept':'application/json'}});
+        if(!response.ok)throw new Error('Could not load saved changes for this page.');
+        const result=await response.json();
+        editsBySelector=new Map(result.edits.map(edit=>[edit.selector,edit]));
+      };
+      const previewChange=()=>{
+        if(!selected)return;
+        const image=imageFile.files[0];
+        const sendPreview=previewImage=>{
+        const edit={
+          selector:selected.selector,
+          text:document.querySelector('#text-enabled').checked?document.querySelector('#text-value').value:null,
+          image:previewImage??(document.querySelector('#remove-image').checked?'':null),
+          font_family:document.querySelector('#font-family').value,
+          font_size:document.querySelector('#font-size').value,
+          text_color:document.querySelector('#text-color').value,
+          hidden:document.querySelector('#hidden').checked,
+        };
+        frame.contentWindow.postMessage({type:'esicom-visual-editor-preview',edit},new URL(previewBase).origin);
+        };
+        if(image){
+          const reader=new FileReader();
+          reader.addEventListener('load',()=>sendPreview(String(reader.result)));
+          reader.addEventListener('error',()=>setStatus('The selected photo could not be previewed.',true));
+          reader.readAsDataURL(image);
+          return;
+        }
+        sendPreview(null);
+      };
+      const showSelection=async info=>{
+        selected=info;
+        if(!editsBySelector.has(info.selector))await loadPageEdits();
+        savedEdit=editsBySelector.get(info.selector)||null;
+        document.querySelector('#selection-name').textContent=(info.tag==='img'?'Photo':'Text or element')+' selected';
+        document.querySelector('#selection-path').textContent=info.tag.toUpperCase()+' on '+pagePicker.options[pagePicker.selectedIndex].text;
+        empty.hidden=true;
+        form.hidden=false;
+        const textEnabled=document.querySelector('#text-enabled');
+        textEnabled.checked=savedEdit?savedEdit.text_enabled:info.tag!=='img';
+        document.querySelector('#text-value').value=savedEdit?.text_enabled?savedEdit.text:info.text;
+        document.querySelector('#text-control').hidden=info.tag==='img';
+        document.querySelector('#image-control').hidden=info.tag!=='img';
+        document.querySelector('#font-family').value=savedEdit?.font_family||'';
+        document.querySelector('#font-size').value=savedEdit?.font_size||'';
+        document.querySelector('#text-color').value=savedEdit?.text_color||'';
+        document.querySelector('#hidden').checked=Boolean(savedEdit?.hidden);
+        document.querySelector('#remove-image').checked=false;
+        imageFile.value='';
+        const image=savedEdit?.image||info.image;
+        imagePreview.src=image;
+        imagePreview.style.display=info.tag==='img'&&image?'block':'none';
+        setStatus('');
+      };
+      pagePicker.addEventListener('change',async()=>{
+        selected=null;
+        form.hidden=true;
+        sectionForm.hidden=true;
+        empty.hidden=false;
+        setStatus('');
+        refreshFrame();
+        try{await loadPageEdits()}catch(error){setStatus(error.message,true)}
+      });
+      window.addEventListener('message',event=>{
+        if(event.source!==frame.contentWindow||event.origin!==new URL(previewBase).origin)return;
+        if(event.data?.type==='esicom-visual-editor-select'&&event.data.page===pagePicker.value){
+          showSelection(event.data).catch(error=>setStatus(error.message,true));
+        }
+      });
+      form.addEventListener('input',previewChange);
+      form.addEventListener('change',previewChange);
+      document.querySelector('#color-picker').addEventListener('input',event=>{
+        document.querySelector('#text-color').value=event.target.value;
+        previewChange();
+      });
+      document.querySelector('#text-color').addEventListener('input',event=>{
+        if(/^#[0-9a-fA-F]{6}$/.test(event.target.value))document.querySelector('#color-picker').value=event.target.value;
+      });
+      imageFile.addEventListener('change',()=>{
+        const file=imageFile.files[0];
+        if(file){
+          imagePreview.src=URL.createObjectURL(file);
+          imagePreview.style.display='block';
+        }
+        previewChange();
+      });
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();
+        if(!selected)return;
+        const data=new FormData();
+        data.set('selector',selected.selector);
+        data.set('text',document.querySelector('#text-value').value);
+        data.set('text_enabled',document.querySelector('#text-enabled').checked?'true':'false');
+        data.set('font_family',document.querySelector('#font-family').value);
+        data.set('font_size',document.querySelector('#font-size').value);
+        data.set('text_color',document.querySelector('#text-color').value);
+        data.set('hidden',document.querySelector('#hidden').checked?'true':'false');
+        if(imageFile.files[0])data.set('image',imageFile.files[0]);
+        if(document.querySelector('#remove-image').checked)data.set('remove_image','true');
+        const button=document.querySelector('#save-button');
+        button.disabled=true;
+        setStatus('Saving your change…');
+        try{
+          const response=await fetch(apiForPage(pagePicker.value),{
+            method:'POST',
+            headers:{'X-CSRFToken':csrfToken,'Accept':'application/json'},
+            body:data,
+          });
+          const result=await response.json();
+          if(!response.ok)throw new Error(result.detail||'The change could not be saved.');
+          setStatus('Saved. This change is now part of the website.');
+          await loadPageEdits();
+          imageFile.value='';
+          document.querySelector('#remove-image').checked=false;
+          refreshFrame();
+        }catch(error){setStatus(error.message,true)}
+        finally{button.disabled=false}
+      });
+      addSectionButton.addEventListener('click',()=>{
+        selected=null;
+        form.hidden=true;
+        empty.hidden=true;
+        sectionForm.hidden=false;
+        setStatus('Add a new text or photo section to this page.');
+        document.querySelector('#section-title').focus();
+      });
+      sectionForm.addEventListener('submit',async event=>{
+        event.preventDefault();
+        const button=sectionForm.querySelector('[type="submit"]');
+        button.disabled=true;
+        setStatus('Adding your section…');
+        try{
+          const response=await fetch('/api/page-sections/'+encodeURIComponent(pagePicker.value)+'/',{
+            method:'POST',
+            headers:{'X-CSRFToken':csrfToken,'Accept':'application/json'},
+            body:new FormData(sectionForm),
+          });
+          const result=await response.json();
+          if(!response.ok)throw new Error(result.detail||'The section could not be added.');
+          sectionForm.reset();
+          setStatus('Section added to the page.');
+          refreshFrame();
+        }catch(error){setStatus(error.message,true)}
+        finally{button.disabled=false}
+      });
+      document.querySelector('#reset-button').addEventListener('click',async()=>{
+        if(!selected)return;
+        if(!window.confirm('Restore this item to its original website content?'))return;
+        try{
+          const response=await fetch(apiForPage(pagePicker.value)+'?selector='+encodeURIComponent(selected.selector),{
+            method:'DELETE',
+            headers:{'X-CSRFToken':csrfToken,'Accept':'application/json'},
+          });
+          const result=await response.json();
+          if(!response.ok)throw new Error(result.detail||'The original could not be restored.');
+          setStatus('Original website content restored.');
+          await loadPageEdits();
+          refreshFrame();
+          showSelection(selected);
+        }catch(error){setStatus(error.message,true)}
+      });
+      refreshFrame();
+      loadPageEdits().catch(error=>setStatus(error.message,true));
+    })();
+  </script>
+</body>
+</html>
+
+===== backend\requirements.txt =====
+
+Django>=5.2,<5.3
+django-cors-headers>=4.6,<5.0
+gunicorn>=23,<24
+dj-database-url>=2.3,<4.0
+psycopg[binary]>=3.2,<4
+Pillow>=11,<13
+pdf2docx>=0.5.10,<0.6
+PyMuPDF>=1.26.7,<2
+qrcode[pil]>=8,<9
+redis>=5,<7
+whitenoise>=6.8,<7
+
+===== frontend\build.py =====
+
+#!/usr/bin/env python3
+"""Dependency-free static production builder for Esicom Suppliers."""
+from pathlib import Path
+import json, os, shutil, re, sys
+from urllib.parse import urlsplit
+
+ROOT = Path(__file__).resolve().parent
+DIST = ROOT / 'dist'
+ASSETS = ROOT / 'public'
+NAVY = '#183c35'
+PAGES = {
+ '/': {'title':'Everything your office', 'highlight':'needs.', 'eyebrow':'A Nairobi supplier for the workday', 'intro':'Everyday stationery, printing supplies and branded merchandise. Tell us what you need; we’ll take it from there.', 'image':'/images/photography/meeting-room.webp', 'kind':'home'},
+ '/office-supplies/': {'title':'The everyday essentials.', 'eyebrow':'OFFICE SUPPLIES', 'intro':'Pens, paper, notebooks and office supplies for the workday.', 'image':'/images/photography/stock-boxed-pens.webp', 'items':['Pens and writing materials','Notebooks, pads and diaries','Files and folders','Printing paper and desk essentials','Office stationery for teams and organisations'], 'kind':'detail'},
+ '/computer-consumables/': {'title':'Keep work moving.', 'eyebrow':'COMPUTER CONSUMABLES', 'intro':'Toners, ink cartridges and computer essentials. Share your printer model and we’ll help you find the right fit.', 'image':'/images/photography/computer.webp', 'items':['Printer toners','Ink cartridges','Computer appliances and accessories','Consumable sourcing enquiries','Product model and specification checks before quotation'], 'kind':'detail'},
+ '/bulk-printing/': {'title':'Let’s get your print job sorted.', 'eyebrow':'BULK PRINTING', 'intro':'Tell us what you’re printing, how many you need and when you need them.', 'image':'/images/photography/printing.webp', 'items':['Bulk printed business materials','Business documents and stationery','Quantity, size and finish discussions','Print-ready artwork coordination','Quotation based on your brief'], 'kind':'detail'},
+ '/branding/': {'title':'Give your brand a useful life.', 'eyebrow':'CORPORATE BRANDING', 'intro':'Branded shirts, business cards, diaries and practical merchandise. Bring your logo and tell us what you have in mind.', 'image':'/images/photography/apparel.webp', 'items':['Branded shirts and apparel','Business cards','Branded diaries and stationery','Asset tags and identification','Custom corporate branding enquiries'], 'kind':'branding'},
+ '/about/': {'title':'One local team for the workday.', 'eyebrow':'ABOUT ESICOM SUPPLIERS', 'intro':'We help Nairobi businesses source everyday office supplies, printing and branded merchandise.', 'image':'/images/photography/meeting-room.webp', 'items':['Office stationery and workplace essentials','Printing paper, files, notebooks and pens','Toners, cartridges and computer-related supplies','Bulk printing for business materials','Branded shirts, business cards, diaries and asset tags'], 'kind':'detail'},
+ '/contact/': {'title':'What can we help you find?', 'eyebrow':'CONTACT · REQUEST A QUOTE', 'intro':'Send us your list, product photo or print brief. Our team in Nairobi will take it from there.', 'image':'/images/photography/workspace.webp', 'kind':'contact'},
+ '/send-file/': {'title':'Send a file to Esicom', 'eyebrow':'FILE UPLOAD', 'intro':'Upload a document or image, convert it if needed, and send it to our team.', 'image':'', 'kind':'upload'},
+ '/file-qr/': {'title':'Scan to send a file', 'eyebrow':'FILE UPLOAD QR', 'intro':'Print this QR code so customers can open the secure file upload page on their phones.', 'image':'', 'kind':'qr'},
+ '/paper-filing/': {'title':'Paper, pens and the rest.', 'eyebrow':'PAPER & FILING', 'intro':'Reams of copy paper, boxed stationery, files and folders. Let us know what your office needs.', 'image':'/images/photography/stock-copy-paper.webp', 'items':['Copy paper and reams','Files and folders','Notebooks and writing pads','Document organisation supplies','Bulk supply enquiries for offices and teams'], 'kind':'detail'},
+ '/business-cards/': {'title':'Business cards, made personal.', 'eyebrow':'BUSINESS CARDS', 'intro':'Tell us about the artwork, quantity and finish you have in mind.', 'image':'/images/photography/printing.webp', 'items':['Business card printing enquiries','Artwork and design file coordination','Quantity and finish discussions','Quotation based on specifications'], 'kind':'detail'},
+ '/branded-apparel/': {'title':'Merchandise made yours.', 'eyebrow':'BRANDED APPAREL', 'intro':'Bring your logo and team requirements. We’ll discuss apparel and other branded items with you.', 'image':'/images/photography/apparel.webp', 'items':['Branded shirts','Team and event apparel enquiries','Logo artwork coordination','Quantity and sizing discussions','Quotation based on your brief'], 'kind':'detail'},
+ '/diaries-asset-tags/': {'title':'Useful things, with your name on them.', 'eyebrow':'DIARIES & ASSET TAGS', 'intro':'Branded diaries, stationery and asset tags for your organisation.', 'image':'/images/photography/stationery.webp', 'items':['Branded diaries','Branded stationery','Asset tags','Organisation and identification materials','Bulk quotation enquiries'], 'kind':'detail'},
+}
+
+CSS = r'''@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+:root{--navy:#10243d;--blue:#183f67;--pale:#eaf1f8;--paper:#f5f8fc;--muted:#65768a;--line:#dbe4ed;--white:#fff;--shadow:0 22px 70px rgba(16,36,61,.12)}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--navy);font-family:'DM Sans',sans-serif;line-height:1.6}a{color:inherit;text-decoration:none}img{max-width:100%;display:block}button,input,select,textarea{font:inherit}.wrap{width:min(1240px,calc(100% - 48px));margin-inline:auto}.topline{background:var(--navy);color:#d8e8f6;font-size:12px;padding:8px 0}.topline .wrap{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}.header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}.navrow{min-height:86px;display:flex;align-items:center;justify-content:space-between;gap:22px}.brand{display:flex;align-items:center;gap:11px;flex-shrink:0}.brand-mark{display:grid;place-items:center;width:43px;height:43px;border-radius:13px;background:var(--navy);color:white;font:800 22px Manrope,sans-serif}.brand-name{font:800 15px Manrope,sans-serif;letter-spacing:.16em;line-height:1.2}.brand-sub{display:block;color:var(--muted);font:700 9px 'DM Sans',sans-serif;letter-spacing:.25em;text-transform:uppercase;margin-top:4px}.navlinks{display:flex;align-items:center;gap:21px;font-size:12px;font-weight:700}.navlinks a{padding:8px 0;border-bottom:2px solid transparent}.navlinks a:hover,.navlinks a[aria-current=page]{border-color:var(--blue)}.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:1px solid transparent;border-radius:999px;padding:14px 21px;font-size:13px;font-weight:800;transition:transform .2s,background .2s;cursor:pointer}.btn:hover{transform:translateY(-2px)}.btn-primary{background:var(--navy);color:white}.btn-primary:hover{background:var(--blue)}.btn-light{background:white;border-color:var(--line)}.btn-blue{background:var(--blue);color:white}.nav-actions{display:flex;gap:10px;align-items:center}.menu-btn{display:none;border:1px solid var(--line);background:white;border-radius:12px;width:44px;height:44px;font-size:20px}.hero{padding:66px 0 74px;overflow:hidden;background:linear-gradient(105deg,var(--paper) 0%,var(--paper) 48%,#e4edf6 48%,#e4edf6 100%)}.hero-grid{display:grid;grid-template-columns:.95fr 1.05fr;gap:58px;align-items:center}.eyebrow{display:flex;align-items:center;gap:10px;color:var(--blue);font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase}.eyebrow:before{content:'';width:27px;height:2px;background:currentColor}.hero h1{font:800 clamp(46px,6.8vw,90px)/.96 Manrope,sans-serif;letter-spacing:-.075em;margin:24px 0}.hero h1 span{color:var(--blue)}.lead{max-width:510px;font-size:17px;line-height:1.8;color:#52677e}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}.hero-visual{position:relative;min-width:0}.hero-visual img{width:100%;height:470px;object-fit:cover;border-radius:30px;box-shadow:var(--shadow)}.floating-note{position:absolute;left:-24px;top:30px;background:#fff;border:1px solid #fff;border-radius:15px;padding:15px 18px;box-shadow:var(--shadow);font-size:12px;font-weight:800}.visual-caption{position:absolute;bottom:18px;left:18px;right:18px;background:rgba(16,36,61,.84);color:#fff;border-radius:16px;padding:17px 20px;font:700 19px Manrope,sans-serif;backdrop-filter:blur(8px)}.strip{background:white;border-block:1px solid var(--line)}.strip-grid{display:grid;grid-template-columns:repeat(4,1fr)}.strip-item{padding:24px 18px;border-right:1px solid var(--line)}.strip-item:last-child{border:0}.strip-item b{display:block;font:800 23px Manrope,sans-serif;color:var(--blue)}.strip-item span{display:block;color:var(--muted);font-size:12px;margin-top:3px}.section{padding:82px 0}.section.white{background:#fff}.section.dark{background:var(--navy);color:white}.section-head{display:flex;align-items:end;justify-content:space-between;gap:30px;margin-bottom:32px}.section h2,.section-head h2{font:800 clamp(30px,4.2vw,52px)/1.08 Manrope,sans-serif;letter-spacing:-.055em;margin:12px 0}.section-head p{max-width:420px;color:var(--muted);margin:0}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.card{border:1px solid var(--line);background:white;border-radius:23px;overflow:hidden;transition:transform .25s,box-shadow .25s}.card:hover{transform:translateY(-5px);box-shadow:var(--shadow)}.card img{width:100%;height:250px;object-fit:cover;background:var(--pale)}.card-body{padding:22px}.card-body h3{font:800 20px Manrope,sans-serif;margin:0 0 8px}.card-body p{color:var(--muted);font-size:14px;line-height:1.7;margin:0 0 16px}.link{display:inline-flex;align-items:center;gap:8px;color:var(--blue);font-size:13px;font-weight:800}.link:after{content:'↗';font-size:17px}.service-panel{display:grid;grid-template-columns:1fr 1fr;gap:24px}.service-feature{position:relative;min-height:360px;border-radius:25px;overflow:hidden;background:var(--navy)}.service-feature img{position:absolute;width:100%;height:100%;object-fit:cover;opacity:.76}.service-feature:after{content:'';position:absolute;inset:0;background:linear-gradient(0deg,rgba(16,36,61,.95),transparent 75%)}.service-feature div{position:absolute;z-index:1;left:25px;right:25px;bottom:24px;color:white}.service-feature h3{font:800 27px Manrope,sans-serif;margin:0 0 8px}.service-feature p{max-width:400px;color:#e0e9f2;margin:0 0 15px;font-size:14px}.cta-band{background:#dce8f4;border-radius:28px;padding:36px;display:flex;align-items:center;justify-content:space-between;gap:22px}.cta-band h2{font:800 clamp(27px,3.5vw,42px)/1.12 Manrope,sans-serif;margin:10px 0}.page-hero{padding:58px 0 55px;background:linear-gradient(115deg,#f5f8fc 0%,#f5f8fc 55%,#e4edf6 55%)}.page-hero-grid{display:grid;grid-template-columns:1fr .8fr;align-items:center;gap:52px}.page-hero h1{font:800 clamp(38px,5vw,66px)/1.04 Manrope,sans-serif;letter-spacing:-.06em;margin:17px 0}.page-hero p{font-size:16px;color:#53677d;max-width:620px;line-height:1.85}.page-hero img{height:300px;width:100%;object-fit:cover;border-radius:24px;box-shadow:var(--shadow)}.detail-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:45px;align-items:start}.check-list{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.check-item{padding:17px;border:1px solid var(--line);border-radius:15px;background:white;font-size:13px;font-weight:700;display:flex;gap:11px;align-items:flex-start}.check-item:before{content:'✓';display:grid;place-items:center;flex-shrink:0;width:24px;height:24px;background:var(--pale);color:var(--blue);border-radius:50%;font-weight:900}.form-layout{display:grid;grid-template-columns:.75fr 1.25fr;gap:44px}.contact-list{display:grid;gap:18px;margin-top:28px}.contact-item{display:flex;align-items:center;gap:14px}.contact-icon{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;background:var(--pale);font-size:19px}.contact-item small{display:block;color:var(--muted);font-size:11px}.contact-item b{font-size:14px;overflow-wrap:anywhere}.quote-form{background:white;border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:var(--shadow)}.quote-form h2{font:800 26px Manrope,sans-serif;margin:0 0 6px}.quote-form>p{color:var(--muted);font-size:13px;margin:0 0 22px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}.field{display:grid;gap:7px;font-size:12px;font-weight:800}.field.full{grid-column:1/-1}.field input,.field select,.field textarea{width:100%;border:1px solid #ccd8e5;border-radius:11px;padding:12px 13px;background:#fff;color:var(--navy);outline:none}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #183f671a}.field textarea{resize:vertical;min-height:110px}.form-status{margin-top:15px;padding:13px 15px;background:var(--pale);border-radius:12px;font-size:13px;color:var(--navy)}.footer{background:var(--navy);color:white;padding:52px 0 20px}.footer-grid{display:grid;grid-template-columns:1.2fr .8fr .8fr 1fr;gap:30px;padding-bottom:35px;border-bottom:1px solid #ffffff24}.footer h3{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#c7d9eb}.footer a,.footer p{font-size:13px;color:#d5dfeb}.footer-links{display:grid;gap:10px}.footer-bottom{display:flex;justify-content:space-between;gap:12px;padding-top:17px;color:#aebdce;font-size:11px}.whatsapp{position:fixed;z-index:30;bottom:20px;right:20px;background:#183f67;color:#fff;border-radius:999px;padding:13px 18px;box-shadow:var(--shadow);font-size:13px;font-weight:800}.mockup-label{display:inline-block;border-radius:999px;background:var(--pale);padding:7px 12px;color:var(--blue);font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.catalogue-callout{display:flex;align-items:center;justify-content:space-between;gap:20px;background:white;border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:25px}.catalogue-callout strong{font:800 17px Manrope,sans-serif}.catalogue-callout p{margin:5px 0 0;font-size:13px;color:var(--muted)}.mobile-nav{display:none}
+@media(max-width:1100px){.navlinks{gap:12px;font-size:11px}.nav-actions .catalogue-btn{display:none}.nav-actions .quote-btn{padding:12px 15px}.hero-grid{gap:30px}.hero-visual img{height:420px}}
+@media(max-width:900px){.wrap{width:min(100% - 36px,700px)}.navrow{min-height:74px}.navlinks{display:none}.nav-actions .quote-btn{display:none}.menu-btn{display:block}.mobile-nav.open{display:grid;padding:0 18px 16px;gap:4px}.mobile-nav a{padding:11px 12px;border-radius:10px;font-size:13px;font-weight:700}.mobile-nav a:hover{background:var(--pale)}.hero{padding:42px 0 54px;background:linear-gradient(160deg,var(--paper) 0%,var(--paper) 60%,#e4edf6 60%)}.hero-grid,.page-hero-grid,.detail-grid,.form-layout{grid-template-columns:1fr}.hero-grid{gap:34px}.hero-visual img{height:360px}.floating-note{left:12px;top:12px}.strip-grid{grid-template-columns:repeat(2,1fr)}.strip-item:nth-child(2){border-right:0}.strip-item:nth-child(-n+2){border-bottom:1px solid var(--line)}.section{padding:60px 0}.section-head{align-items:start;flex-direction:column}.cards{grid-template-columns:repeat(2,1fr)}.service-panel{grid-template-columns:1fr 1fr}.page-hero{padding:42px 0}.page-hero-grid{gap:24px}.page-hero img{height:280px}.footer-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.wrap{width:calc(100% - 30px)}.topline .wrap{justify-content:center;text-align:center}.hero h1{font-size:clamp(46px,14vw,72px)}.hero-visual img{height:300px;border-radius:20px}.visual-caption{font-size:16px}.cards,.service-panel,.check-list,.form-grid{grid-template-columns:1fr}.card img{height:220px}.service-feature{min-height:320px}.cta-band{align-items:flex-start;flex-direction:column;padding:25px}.page-hero h1{font-size:39px}.page-hero img{height:230px}.quote-form{padding:19px}.field.full{grid-column:auto}.footer-grid{grid-template-columns:1fr;gap:25px}.footer-bottom{flex-direction:column}.whatsapp{right:12px;bottom:12px;padding:12px 14px}.catalogue-callout{align-items:flex-start;flex-direction:column}}
+html{scroll-padding-top:100px}
+main[id]{scroll-margin-top:100px}
+:focus-visible{outline:3px solid #3975a8;outline-offset:4px}
+.skip-link{position:fixed;z-index:100;top:12px;left:12px;transform:translateY(-160%);padding:12px 16px;border-radius:10px;background:#fff;color:var(--navy);font-weight:800;box-shadow:var(--shadow)}
+.skip-link:focus{transform:translateY(0)}
+.mobile-nav{max-height:calc(100vh - 74px);overflow-y:auto}
+.mobile-nav a[aria-current=page]{background:var(--pale);color:var(--blue)}
+.btn:focus-visible,.menu-btn:focus-visible,.whatsapp:focus-visible{outline-offset:3px}
+@media(max-width:600px){.hero{padding-top:34px}.hero-grid{gap:27px}.strip-item{padding:19px 14px}.strip-item b{font-size:20px}.section{padding:50px 0}.page-hero{padding:34px 0}.actions .btn{flex:1 1 auto}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
+:root{--navy:#183c35;--blue:#47735f;--pale:#e8eee6;--paper:#f6f4ee;--muted:#64736b;--line:#dce3da;--white:#fff;--gold:#b8894f;--shadow:0 26px 72px rgba(24,60,53,.14)}
+body{background:var(--paper);color:#203b34}
+.topline{background:#14332d;color:#e8eee6}
+.header{background:rgba(250,249,245,.94);box-shadow:0 8px 32px rgba(24,60,53,.055)}
+.brand-mark{background:linear-gradient(145deg,#214b40,#102c26);box-shadow:inset 0 1px 0 #ffffff30,0 8px 20px #17392c25}
+.navlinks a:hover,.navlinks a[aria-current=page]{border-color:var(--gold)}
+.btn{border-radius:10px;padding:14px 20px;box-shadow:0 7px 18px rgba(24,60,53,.08)}
+.btn-primary{background:linear-gradient(135deg,#245644,#153c32);box-shadow:0 9px 20px rgba(24,60,53,.2),inset 0 1px 0 #ffffff25}
+.btn-primary:hover{background:linear-gradient(135deg,#326b54,#1b493c);box-shadow:0 13px 26px rgba(24,60,53,.24)}
+.btn-light{background:#fffefa;border-color:#d8dfd5}
+.menu-btn{border-radius:10px}
+.hero{position:relative;isolation:isolate;padding:84px 0 86px;background:radial-gradient(ellipse at 87% 37%,rgba(222,232,218,.95),transparent 39%),linear-gradient(108deg,#f7f5ef 0%,#f7f5ef 52%,#edf0e8 52%,#edf0e8 100%)}
+.hero:before{content:"";position:absolute;z-index:-1;width:360px;height:360px;right:-155px;top:-145px;border:1px solid rgba(184,137,79,.24);border-radius:50%;box-shadow:0 0 0 30px rgba(255,255,255,.18),0 0 0 60px rgba(255,255,255,.12)}
+.hero-grid{grid-template-columns:1fr 1.02fr;gap:clamp(38px,6vw,86px)}
+.eyebrow{color:#547760;letter-spacing:.18em}
+.eyebrow:before{width:30px;height:2px;color:var(--gold);background:var(--gold)}
+.hero h1{font-size:clamp(49px,6.2vw,82px);letter-spacing:-.07em;line-height:.99;margin:25px 0 21px}
+.hero h1 span{color:#4e775f}
+.lead{max-width:490px;color:#5e6f66;font-size:17px;line-height:1.8}
+.hero .actions{margin-top:30px}
+.hero-visual{perspective:1400px;transform-style:preserve-3d}
+.hero-visual:before{content:"";position:absolute;z-index:-1;inset:17px -17px -15px 17px;border:1px solid rgba(184,137,79,.5);border-radius:30px;transform:rotate(2.5deg) translateZ(-28px)}
+.hero-visual img{height:500px;border-radius:25px;transform:rotateY(-4deg) rotateX(1.5deg) translateZ(10px);box-shadow:0 38px 80px rgba(21,49,41,.23),0 12px 26px rgba(21,49,41,.14);transition:transform .55s cubic-bezier(.2,.7,.2,1),box-shadow .55s}
+.hero-visual:hover img{transform:rotateY(-1deg) rotateX(0) translateY(-5px) translateZ(16px);box-shadow:0 48px 95px rgba(21,49,41,.27),0 14px 30px rgba(21,49,41,.16)}
+.floating-note{left:-30px;top:28px;border:1px solid #ffffffcf;border-radius:12px;color:#244438;box-shadow:0 16px 35px rgba(21,49,41,.16);letter-spacing:.035em}
+.visual-caption{background:linear-gradient(105deg,rgba(19,48,41,.93),rgba(32,71,57,.8));border:1px solid #ffffff2c;border-radius:13px;box-shadow:0 8px 25px #09251f40}
+.mockup-label{background:#e7eee5;color:#426650;letter-spacing:.1em}
+.strip{background:#fffefa;border-color:var(--line)}
+.strip-item{position:relative;padding-block:25px}
+.strip-item b{color:#b8894f;font-size:21px}
+.strip-item span{color:#52665d;font-size:12px;font-weight:700;letter-spacing:.015em}
+.section{padding:88px 0}
+.section h2,.section-head h2{letter-spacing:-.045em}
+.section-head p{color:#66746c;line-height:1.8}
+.section.dark{background:radial-gradient(ellipse at 87% 15%,#2a5749 0%,transparent 40%),#173a32}
+.section.dark .eyebrow{color:#d6c09a}
+.section.dark .eyebrow:before{background:#c39a63}
+.section.dark .section-head p{color:#d1ded4}
+.card{border-color:#e5e6dd;border-radius:16px;background:#fffefa;box-shadow:0 8px 25px rgba(29,55,46,.045);transition:transform .35s cubic-bezier(.2,.7,.2,1),box-shadow .35s,border-color .35s}
+.card:hover{transform:translateY(-8px) rotateX(1deg);border-color:#c8d4c9;box-shadow:0 24px 48px rgba(29,55,46,.14)}
+.card img{height:260px;object-fit:cover;transition:transform .55s cubic-bezier(.2,.7,.2,1)}
+.card:hover img{transform:scale(1.035)}
+.card-body{padding:23px}
+.card-body h3{color:#213e34}
+.card-body p{color:#65736b}
+.link{color:#47735f}
+.link:after{color:var(--gold)}
+.service-feature{min-height:385px;border-radius:18px;box-shadow:0 20px 45px rgba(3,19,15,.25);transition:transform .4s,box-shadow .4s}
+.service-feature:hover{transform:translateY(-7px) rotateX(1deg);box-shadow:0 30px 60px rgba(3,19,15,.34)}
+.service-feature img{transition:transform .6s}
+.service-feature:hover img{transform:scale(1.04)}
+.service-feature:after{background:linear-gradient(0deg,rgba(13,38,31,.97),rgba(13,38,31,.03) 82%)}
+.cta-band{position:relative;overflow:hidden;background:linear-gradient(120deg,#e6ece2,#f2ebdd);border:1px solid #e2e4d9;border-radius:18px;box-shadow:0 18px 45px rgba(34,66,54,.08)}
+.cta-band:after{content:"";position:absolute;width:210px;height:210px;right:13%;top:-150px;border:1px solid rgba(184,137,79,.4);border-radius:50%;box-shadow:0 0 0 20px rgba(255,255,255,.13),0 0 0 40px rgba(255,255,255,.1);pointer-events:none}
+.page-hero{background:radial-gradient(ellipse at 90% 35%,rgba(218,229,215,.95),transparent 36%),linear-gradient(110deg,#f7f5ef 0%,#f7f5ef 56%,#edf0e8 56%,#edf0e8 100%)}
+.page-hero h1{color:#1d3d33;letter-spacing:-.055em}
+.page-hero p{color:#5e6f66;line-height:1.8}
+.page-hero img{border-radius:18px;box-shadow:0 28px 65px rgba(21,49,41,.2),0 8px 20px rgba(21,49,41,.1);transform:rotateY(-3deg);transition:transform .45s}
+.page-hero img:hover{transform:rotateY(0) translateY(-4px)}
+.detail-grid{gap:55px}
+.check-item{background:#fffefa;border-color:#e0e5dd;border-radius:13px;color:#29463b}
+.check-item:before{background:#e7eee5;color:#46705a}
+.quote-form{background:#fffefa;border-color:#e0e5dd;border-radius:18px;box-shadow:0 22px 55px rgba(26,55,45,.1)}
+.field input,.field select,.field textarea{border-color:#d6ded5;border-radius:9px}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#5b8067;box-shadow:0 0 0 3px #47735f20}
+.form-status{background:#e7eee5;color:#244438}
+.footer{background:radial-gradient(ellipse at 78% 0%,#285344 0%,transparent 39%),#15362f}
+.footer .brand-mark{background:#f7f4eb!important;color:#183c35!important}
+.footer h3{color:#dac8a7}
+.whatsapp{background:#285d48;border:1px solid #ffffff22;border-radius:10px;box-shadow:0 10px 26px rgba(13,38,30,.24)}
+.whatsapp:hover{background:#347255;transform:translateY(-3px)}
+.catalogue-callout{background:#fffefa;border-color:#e1e5dc;border-radius:14px}
+.photo-credit{display:block;margin:0 0 12px;color:#788279;font-size:10px;line-height:1.6}
+.photo-credit a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.catalog-item-note{margin-top:16px;color:var(--muted);font-size:12px}
+@media(max-width:900px){.hero{background:radial-gradient(ellipse at 88% 72%,#e1e9df,transparent 40%),#f7f5ef}.hero:before{right:-230px}.hero-visual img{height:390px}.hero-visual:before{inset:13px -10px -12px 12px}.page-hero{background:radial-gradient(ellipse at 90% 75%,#e1e9df,transparent 38%),#f7f5ef}.page-hero img{transform:none}.page-hero img:hover{transform:translateY(-3px)}}
+@media(max-width:900px){.hero-grid{grid-template-columns:1fr}.hero-visual{max-width:680px;width:100%;margin-inline:auto}.hero-visual img{transform:none}}
+@media(max-width:600px){.hero{padding-top:39px;padding-bottom:48px}.hero h1{font-size:clamp(45px,12.5vw,67px);line-height:1.02}.hero-visual img{height:290px;border-radius:17px;transform:none}.hero-visual:hover img{transform:translateY(-3px)}.hero-visual:before{inset:10px -7px -10px 8px;border-radius:19px}.floating-note{left:10px;top:10px;padding:11px 13px;font-size:10px}.visual-caption{left:12px;right:12px;bottom:12px;padding:13px 15px}.section{padding:55px 0}.card img{height:225px}.service-feature{border-radius:15px}.cta-band{border-radius:15px}.page-hero img{border-radius:15px}.strip-item{padding:18px 12px}.strip-item b{font-size:18px}.actions .btn{flex:1 1 auto}}
+.service-panel.premium-services{grid-template-columns:repeat(3,minmax(0,1fr))}
+.service-panel.premium-services .service-feature{min-height:340px}
+@media(max-width:900px){.service-panel.premium-services{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.service-panel.premium-services{grid-template-columns:1fr}.service-panel.premium-services .service-feature{min-height:300px}}
+.upload-shell{padding:64px 0 80px;background:linear-gradient(145deg,#f7f5ef,#e9eee7)}
+.upload-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,.75fr);gap:32px;align-items:start}
+.upload-card,.qr-card{background:#fffefa;border:1px solid #e0e5dd;border-radius:20px;padding:clamp(22px,4vw,42px);box-shadow:0 20px 55px rgba(26,55,45,.08)}
+.upload-card h1,.qr-card h1{font:800 clamp(35px,5vw,54px)/1.05 Manrope,sans-serif;letter-spacing:-.06em;margin:0 0 14px}
+.upload-card>p,.qr-card>p{color:var(--muted)}
+.upload-card .field{margin-top:17px}
+.upload-card [hidden]{display:none!important}
+.upload-card input[type=file]{padding:13px;background:#fff}
+.upload-note{font-size:12px;color:var(--muted)}
+.upload-result{margin-top:18px;padding:16px;background:#e7eee5;border-radius:12px}
+.upload-result[hidden]{display:none}
+.qr-shell{padding:64px 0 80px}
+.qr-card{max-width:760px;margin-inline:auto;text-align:center}
+.qr-image{width:min(330px,80vw);aspect-ratio:1;margin:26px auto;object-fit:contain;padding:12px;border:1px solid var(--line);border-radius:12px}
+.qr-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.qr-instructions{max-width:540px;margin:0 auto 20px;color:var(--muted)}
+@media(max-width:760px){.upload-shell,.qr-shell{padding:36px 0 55px}.upload-grid{grid-template-columns:1fr}}
+@media print{.topline,.header,.footer,.whatsapp,.qr-actions,.skip-link{display:none!important}body,.qr-shell{background:#fff!important}.wrap{width:100%}.qr-card{border:0;box-shadow:none;padding:15mm}.qr-image{width:85mm;margin:12mm auto}.qr-card h1{font-size:28pt}}
+
+/* A darker, photo-led identity inspired by the reference while keeping Esicom's own palette. */
+.header{background:rgba(20,51,45,.97);border-bottom-color:#ffffff1c;box-shadow:0 12px 35px rgba(13,38,31,.18)}
+.brand-name{color:#fff}
+.brand-sub{color:#c5d7ca}
+.brand-mark{background:#f7f5ef;color:#183c35;box-shadow:none}
+.navlinks a{color:#edf4ed}
+.navlinks a:hover,.navlinks a[aria-current=page]{border-color:#69b875;color:#fff}
+.header .btn-light{background:transparent;border-color:#ffffff55;color:#fff;box-shadow:none}
+.header .btn-primary{background:#2f9b55;color:#fff;box-shadow:0 8px 22px rgba(24,111,58,.28)}
+.header .btn-primary:hover{background:#38ad63}
+.menu-btn{background:transparent;border-color:#ffffff55;color:#fff}
+.mobile-nav{background:#14332d;border-top-color:#ffffff20}
+.mobile-nav a{color:#edf4ed}
+.mobile-nav a:hover,.mobile-nav a[aria-current=page]{background:#ffffff12;color:#fff}
+.hero{padding:88px 0 92px;background:radial-gradient(ellipse at 90% 32%,rgba(218,231,216,.88),transparent 42%),linear-gradient(112deg,#f8f7f2 0%,#f8f7f2 50%,#eaf0e8 50%,#eaf0e8 100%)}
+.hero h1{max-width:650px;font-size:clamp(52px,6.4vw,88px);line-height:.98}
+.hero h1 span{color:#347d4a}
+.hero-visual img{height:520px;border-radius:20px;transform:none;box-shadow:0 34px 72px rgba(21,49,41,.22)}
+.hero-visual:hover img{transform:translateY(-5px);box-shadow:0 42px 85px rgba(21,49,41,.27)}
+.hero-visual:before{border-radius:22px}
+.visual-caption{background:linear-gradient(105deg,rgba(18,48,39,.94),rgba(34,80,52,.82))}
+.btn-primary{background:#267a46}
+.btn-primary:hover{background:#338b52}
+.section-head h2{color:#1d3d33}
+.section.dark .section-head h2{color:#fff}
+.service-feature{min-height:390px}
+.cta-band{background:linear-gradient(120deg,#e3ebdf,#f0e8d8);border-color:#dce3d8}
+.footer{background:radial-gradient(ellipse at 78% 0%,#285344 0%,transparent 39%),#14332d}
+.whatsapp{background:#218c4c}
+.whatsapp:hover{background:#2ba45a}
+@media(max-width:900px){
+  .hero{padding:62px 0 66px;background:radial-gradient(ellipse at 88% 72%,#e1e9df,transparent 40%),#f7f5ef}
+  .hero-visual img{height:420px}
+}
+@media(max-width:600px){
+  .hero{padding:40px 0 50px}
+  .hero h1{font-size:clamp(46px,12vw,68px)}
+  .hero-visual img{height:290px}
+}
+.hero-visual{min-width:0}
+.hero-carousel{position:relative;overflow:hidden;border-radius:22px;background:#173a32;box-shadow:0 34px 72px rgba(21,49,41,.22)}
+.hero-slide-link{display:block;position:relative}
+.hero-carousel img{height:520px;width:100%;object-fit:cover;opacity:1;transition:opacity .35s ease,transform .8s cubic-bezier(.2,.7,.2,1)}
+.hero-carousel img.is-changing{opacity:.35;transform:scale(1.025)}
+.hero-slide-link:after{content:"";position:absolute;inset:30% 0 0;background:linear-gradient(0deg,rgba(13,38,31,.78),transparent);pointer-events:none}
+.hero-carousel .visual-caption{position:absolute;z-index:1;left:22px;right:22px;bottom:20px;display:flex;align-items:end;justify-content:space-between;gap:18px;background:transparent;border:0;box-shadow:none;padding:0}
+.hero-caption-copy{display:grid;gap:4px}
+.hero-caption-copy small{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#d8c49f}
+.hero-caption-copy strong{font:800 clamp(18px,2.2vw,25px)/1.15 Manrope,sans-serif;color:#fff}
+.hero-slide-more{flex:0 0 auto;color:#fff;font-size:12px;font-weight:800}
+.hero-carousel-controls{position:absolute;z-index:2;top:18px;right:18px;display:flex;align-items:center;gap:7px;padding:7px;border:1px solid #ffffff42;border-radius:999px;background:rgba(19,48,41,.7);backdrop-filter:blur(12px)}
+.hero-carousel-controls button{display:grid;place-items:center;min-width:32px;height:32px;padding:0 9px;border:0;border-radius:999px;background:transparent;color:#fff;font:700 13px 'DM Sans',sans-serif;cursor:pointer}
+.hero-carousel-controls button:hover,.hero-carousel-controls button:focus-visible{background:#ffffff24;outline:none}
+.hero-carousel-controls [data-hero-dots]{display:flex;align-items:center;gap:5px}
+.hero-carousel-controls [data-hero-dots] button{min-width:10px;width:10px;height:10px;padding:0;background:#ffffff75}
+.hero-carousel-controls [data-hero-dots] button[aria-current=true]{width:24px;background:#d8c49f}
+.hero-carousel .floating-note{z-index:2;top:20px;left:20px;border-radius:999px;padding:11px 15px;background:#fffefa;color:#244438}
+.hero-carousel:before{display:none}
+@media(max-width:900px){.hero-carousel img{height:420px}}
+@media(max-width:600px){
+ .hero-carousel{border-radius:16px}
+ .hero-carousel img{height:300px}
+ .hero-carousel .floating-note{top:13px;left:12px;padding:9px 12px}
+ .hero-carousel-controls{top:12px;right:12px;gap:3px;padding:5px}
+ .hero-carousel-controls button{min-width:28px;height:28px}
+ .hero-carousel .visual-caption{left:14px;right:14px;bottom:14px}
+ .hero-caption-copy strong{font-size:18px}
+}
+body.visual-editor-mode img,
+body.visual-editor-mode h1,
+body.visual-editor-mode h2,
+body.visual-editor-mode h3,
+body.visual-editor-mode p,
+body.visual-editor-mode a,
+body.visual-editor-mode button,
+body.visual-editor-mode span,
+body.visual-editor-mode small,
+body.visual-editor-mode li,
+body.visual-editor-mode .eyebrow,
+body.visual-editor-mode .mockup-label{cursor:crosshair!important}
+body.visual-editor-mode img:hover,
+body.visual-editor-mode h1:hover,
+body.visual-editor-mode h2:hover,
+body.visual-editor-mode h3:hover,
+body.visual-editor-mode p:hover,
+body.visual-editor-mode a:hover,
+body.visual-editor-mode button:hover,
+body.visual-editor-mode span:hover,
+body.visual-editor-mode small:hover,
+body.visual-editor-mode li:hover,
+body.visual-editor-mode .eyebrow:hover,
+body.visual-editor-mode .mockup-label:hover,
+body.visual-editor-mode .visual-editor-selected{outline:3px solid #b8894f!important;outline-offset:3px}
+.cards[data-featured-products] .card img{height:300px}
+.cards[data-featured-products] .card{border-radius:18px}
+.editable-section{background:#fffefa}
+.editable-section-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:36px;align-items:center}
+.editable-section-card>img{width:100%;max-height:440px;object-fit:cover;border-radius:18px}
+.editable-section-copy h2{font:800 clamp(29px,4vw,45px)/1.1 Manrope,sans-serif;letter-spacing:-.05em;margin:0 0 14px;color:#1d3d33}
+.editable-section-copy p{color:var(--muted);line-height:1.85;white-space:pre-line;margin:0 0 20px}
+@media(max-width:700px){.editable-section-card{grid-template-columns:1fr;gap:22px}}
+@media(prefers-reduced-motion:reduce){.hero-carousel img{transition:none}}
+'''
+
+JS = r'''(()=>{
+const menu=document.querySelector('[data-menu-button]');
+const nav=document.querySelector('[data-mobile-nav]');
+if(menu&&nav){
+  const setMenuOpen=open=>{
+    nav.classList.toggle('open',open);
+    menu.setAttribute('aria-expanded',String(open));
+    menu.setAttribute('aria-label',open?'Close navigation':'Open navigation');
+    menu.textContent=open?'×':'☰';
+  };
+  menu.addEventListener('click',()=>setMenuOpen(!nav.classList.contains('open')));
+  nav.addEventListener('click',event=>{
+    if(event.target.closest('a'))setMenuOpen(false);
+  });
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&nav.classList.contains('open')){
+      setMenuOpen(false);
+      menu.focus();
+    }
+  });
+}
+const main=document.querySelector('main[data-content-page]');
+const pageKey=main?.dataset.contentPage;
+const localApiBase=['localhost','127.0.0.1'].includes(location.hostname)&&['4173','4174','5173'].includes(location.port)?'http://127.0.0.1:8000':'';
+const apiBase=(window.ESICOM_API_BASE_URL||localApiBase).replace(/\/$/,'');
+const imageUrl=path=>{
+  if(/^(?:https?:|blob:|data:)/i.test(path))return path;
+  const base=apiBase&&path.startsWith('/media/')?apiBase:location.origin;
+  return new URL(path,base).href;
+};
+let photoOverrides={};
+const siteImage=path=>{
+  if(/^https?:\/\//i.test(path))return path;
+  return imageUrl(photoOverrides[path]||path);
+};
+const visualEditorMode=new URLSearchParams(location.search).get('editor')==='1'&&window.parent!==window;
+const editorParentOrigin=visualEditorMode?new URLSearchParams(location.search).get('editor_origin'):'';
+const visualOriginals=new Map();
+const editorSelector=element=>{
+  const root=element.closest('main[data-content-page],header,footer,.topline');
+  if(!root)return '';
+  const rootSelector=root.matches('main[data-content-page]')
+    ?'main[data-content-page="'+pageKey+'"]'
+    :root.matches('.topline')?'.topline':root.localName;
+  const marker=element.closest('[data-editor-key]');
+  const stableMarker=marker&&root.contains(marker)?marker:null;
+  const parts=[];
+  let current=element;
+  const stopAt=stableMarker||root;
+  while(current&&current!==stopAt){
+    const siblings=[...current.parentElement.children].filter(sibling=>sibling.tagName===current.tagName);
+    parts.unshift(current.localName+':nth-of-type('+(siblings.indexOf(current)+1)+')');
+    current=current.parentElement;
+  }
+  if(stableMarker){
+    const markerSelector='[data-editor-key="'+stableMarker.dataset.editorKey+'"]';
+    return rootSelector+' '+markerSelector+(parts.length?' > '+parts.join(' > '):'');
+  }
+  return current===root?rootSelector+' > '+parts.join(' > '):'';
+};
+const directText=element=>[...element.childNodes]
+  .filter(node=>node.nodeType===Node.TEXT_NODE)
+  .map(node=>node.textContent)
+  .join('')
+  .trim();
+const rememberOriginal=target=>{
+  const selector=editorSelector(target);
+  if(selector&&!visualOriginals.has(selector)){
+    visualOriginals.set(selector,{
+      textNodes:[...target.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE).map(node=>node.textContent),
+      image:target instanceof HTMLImageElement?target.getAttribute('src'):'',
+      fontFamily:target.style.fontFamily,
+      fontSize:target.style.fontSize,
+      color:target.style.color,
+      display:target.style.display,
+    });
+  }
+  return visualOriginals.get(selector);
+};
+const setDirectText=(target,value)=>{
+  const textNodes=[...target.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE);
+  if(textNodes.length){
+    textNodes[0].textContent=value;
+    textNodes.slice(1).forEach(node=>node.remove());
+  }else target.insertBefore(document.createTextNode(value),target.firstChild);
+};
+const applyVisualEdits=edits=>{
+  for(const edit of edits){
+    if(edit.page!==pageKey&&edit.page!=='global')continue;
+    const target=document.querySelector(edit.selector);
+    if(!target)continue;
+    rememberOriginal(target);
+    if(edit.text!==null)setDirectText(target,edit.text);
+    if(edit.image&&target instanceof HTMLImageElement)target.src=imageUrl(edit.image);
+    if(edit.font_family)target.style.fontFamily='"'+edit.font_family+'"';
+    if(edit.font_size)target.style.fontSize=edit.font_size+'px';
+    if(edit.text_color)target.style.color=edit.text_color;
+    if(edit.hidden)target.style.display='none';
+  }
+};
+if(visualEditorMode){
+  document.body.classList.add('visual-editor-mode');
+  window.addEventListener('message',event=>{
+    if(event.origin!==editorParentOrigin||event.source!==parent||event.data?.type!=='esicom-visual-editor-preview')return;
+    const edit=event.data.edit;
+    const target=document.querySelector(edit.selector);
+    if(!target)return;
+    const original=rememberOriginal(target);
+    if(edit.text===null){
+      const textNodes=[...target.childNodes].filter(node=>node.nodeType===Node.TEXT_NODE);
+      textNodes.forEach(node=>node.remove());
+      original.textNodes.forEach(text=>target.insertBefore(document.createTextNode(text),target.firstChild));
+    }else setDirectText(target,edit.text);
+    if(target instanceof HTMLImageElement){
+      if(edit.image!==null)target.src=edit.image?imageUrl(edit.image):imageUrl(original.image);
+    }
+    target.style.fontFamily=edit.font_family?'"'+edit.font_family+'"':original.fontFamily;
+    target.style.fontSize=edit.font_size?edit.font_size+'px':original.fontSize;
+    target.style.color=edit.text_color||original.color;
+    target.style.display=edit.hidden?'none':original.display;
+  });
+  document.addEventListener('click',event=>{
+    const target=event.target.closest('img,h1,h2,h3,p,a,button,span,small,strong,b,li,.eyebrow,.mockup-label');
+    if(!target||!target.closest('main[data-content-page],header,footer,.topline'))return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    document.querySelector('.visual-editor-selected')?.classList.remove('visual-editor-selected');
+    target.classList.add('visual-editor-selected');
+    if(!editorParentOrigin)return;
+    parent.postMessage({
+      type:'esicom-visual-editor-select',
+      page:pageKey,
+      selector:editorSelector(target),
+      tag:target.tagName.toLowerCase(),
+      text:directText(target),
+      image:target instanceof HTMLImageElement?target.src:'',
+      alt:target instanceof HTMLImageElement?target.alt:'',
+    },editorParentOrigin);
+  },true);
+}
+const heroCarousel=pageKey==='home'?document.querySelector('.hero-visual'):null;
+if(heroCarousel){
+  heroCarousel.classList.add('hero-carousel');
+  heroCarousel.setAttribute('role','region');
+  heroCarousel.setAttribute('aria-roledescription','carousel');
+  heroCarousel.setAttribute('aria-label','Featured Esicom supplies, printing and branding');
+  const initialImage=heroCarousel.querySelector('[data-copy-image]');
+  initialImage.removeAttribute('data-copy-image');
+  initialImage.setAttribute('data-hero-slide-image','');
+  initialImage.src='/images/photography/stock-office-box.webp';
+  initialImage.alt='Boxed workplace supplies ready for an office';
+  const note=document.createElement('div');
+  note.className='floating-note';
+  note.textContent='SUPPLY · PRINT · BRAND';
+  const slideLink=document.createElement('a');
+  slideLink.className='hero-slide-link';
+  slideLink.setAttribute('data-hero-slide-link','');
+  slideLink.href='/office-supplies/';
+  slideLink.append(initialImage);
+  const caption=document.createElement('div');
+  caption.className='visual-caption';
+  const captionCopy=document.createElement('div');
+  captionCopy.className='hero-caption-copy';
+  const captionCategory=document.createElement('small');
+  captionCategory.setAttribute('data-hero-slide-category','');
+  const captionTitle=document.createElement('strong');
+  captionTitle.setAttribute('data-hero-slide-title','');
+  captionCopy.append(captionCategory,captionTitle);
+  const slideMore=document.createElement('a');
+  slideMore.className='hero-slide-more';
+  slideMore.setAttribute('data-hero-slide-more','');
+  slideMore.href='/office-supplies/';
+  slideMore.textContent='Explore ↗';
+  caption.append(captionCopy,slideMore);
+  const controls=document.createElement('div');
+  controls.className='hero-carousel-controls';
+  controls.setAttribute('aria-label','Photo slideshow controls');
+  const previous=document.createElement('button');
+  previous.type='button';
+  previous.setAttribute('data-hero-previous','');
+  previous.setAttribute('aria-label','Previous photo');
+  previous.textContent='←';
+  const dots=document.createElement('div');
+  dots.setAttribute('data-hero-dots','');
+  dots.setAttribute('aria-label','Choose a photo');
+  const next=document.createElement('button');
+  next.type='button';
+  next.setAttribute('data-hero-next','');
+  next.setAttribute('aria-label','Next photo');
+  next.textContent='→';
+  const toggle=document.createElement('button');
+  toggle.type='button';
+  toggle.setAttribute('data-hero-toggle','');
+  controls.append(previous,dots,next,toggle);
+  heroCarousel.replaceChildren(note,slideLink,caption,controls);
+}
+const imageSlides=[
+  {image:'/images/photography/stock-office-box.webp',alt:'Boxed workplace supplies ready for an office',category:'Supply · Office essentials',title:'Everyday supplies, brought together.',href:'/office-supplies/'},
+  {image:'/images/photography/computer.webp',alt:'Computer and printer workspace',category:'Supply · Computer essentials',title:'The essentials behind a productive team.',href:'/computer-consumables/'},
+  {image:'/images/photography/printing.webp',alt:'Printed materials prepared for a business brief',category:'Print · Business printing',title:'Make your next print run stand out.',href:'/bulk-printing/'},
+  {image:'/images/photography/apparel.webp',alt:'Apparel for a corporate branding enquiry',category:'Brand · Corporate identity',title:'Put your organisation’s identity to work.',href:'/branding/'}
+];
+let carouselSlides=imageSlides;
+let carouselActive=0;
+let carouselTimer=null;
+let carouselTransition=null;
+let carouselPaused=visualEditorMode||window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let homePageImage='';
+const showHeroSlide=index=>{
+  if(!heroCarousel||!carouselSlides.length)return;
+  const image=heroCarousel.querySelector('[data-hero-slide-image]');
+  const slideLink=heroCarousel.querySelector('[data-hero-slide-link]');
+  const slideMore=heroCarousel.querySelector('[data-hero-slide-more]');
+  const category=heroCarousel.querySelector('[data-hero-slide-category]');
+  const title=heroCarousel.querySelector('[data-hero-slide-title]');
+  const dots=heroCarousel.querySelector('[data-hero-dots]');
+  carouselActive=(index+carouselSlides.length)%carouselSlides.length;
+  const slide=carouselSlides[carouselActive];
+  image.classList.add('is-changing');
+  window.clearTimeout(carouselTransition);
+  const renderSlide=()=>{
+    image.src=siteImage(slide.image);
+    image.alt=slide.alt;
+    slideLink.href=slide.href;
+    slideMore.href=slide.href;
+    category.textContent=slide.category;
+    title.textContent=slide.title;
+    image.classList.remove('is-changing');
+  };
+  if(visualEditorMode)renderSlide();
+  else carouselTransition=window.setTimeout(renderSlide,150);
+  for(const [dotIndex,button] of [...dots.children].entries()){
+    button.setAttribute('aria-current',String(dotIndex===carouselActive));
+    button.setAttribute('aria-label','Show photo '+(dotIndex+1)+' of '+carouselSlides.length);
+  }
+};
+const setHeroPaused=nextPaused=>{
+  if(!heroCarousel)return;
+  const pauseButton=heroCarousel.querySelector('[data-hero-toggle]');
+  carouselPaused=nextPaused;
+  pauseButton.setAttribute('aria-pressed',String(carouselPaused));
+  pauseButton.setAttribute('aria-label',carouselPaused?'Play photo slideshow':'Pause photo slideshow');
+  pauseButton.textContent=carouselPaused?'▶':'Ⅱ';
+  window.clearInterval(carouselTimer);
+  if(!carouselPaused&&carouselSlides.length>1)carouselTimer=window.setInterval(()=>showHeroSlide(carouselActive+1),5500);
+};
+const startHeroCarousel=featuredProducts=>{
+  if(!heroCarousel)return;
+  const dots=heroCarousel.querySelector('[data-hero-dots]');
+  const productSlides=featuredProducts.map(product=>({
+    image:imageUrl(product.image),
+    alt:product.name,
+    category:'Featured · '+(product.page==='office-supplies'?'Office essentials':product.page.replaceAll('-',' ')),
+    title:product.name,
+    href:'/'+encodeURIComponent(product.page)+'/'
+  }));
+  carouselSlides=homePageImage
+    ?[{image:imageUrl(homePageImage),alt:'Featured Esicom Suppliers photo',category:'ESICOM · SUPPLY. PRINT. BRAND.',title:'The details that keep your workday moving.',href:'/office-supplies/'},...(productSlides.length?productSlides:imageSlides)]
+    :productSlides.length?productSlides:imageSlides;
+  dots.replaceChildren(...carouselSlides.map((slide,index)=>{
+    const button=document.createElement('button');
+    button.type='button';
+    button.setAttribute('aria-label','Show photo '+(index+1)+' of '+carouselSlides.length);
+    button.setAttribute('aria-current',String(index===0));
+    button.addEventListener('click',()=>showHeroSlide(index));
+    return button;
+  }));
+  showHeroSlide(0);
+  setHeroPaused(carouselPaused);
+};
+if(heroCarousel){
+  heroCarousel.querySelector('[data-hero-previous]').addEventListener('click',()=>showHeroSlide(carouselActive-1));
+  heroCarousel.querySelector('[data-hero-next]').addEventListener('click',()=>showHeroSlide(carouselActive+1));
+  heroCarousel.querySelector('[data-hero-toggle]').addEventListener('click',()=>setHeroPaused(!carouselPaused));
+  heroCarousel.addEventListener('mouseenter',()=>window.clearInterval(carouselTimer));
+  heroCarousel.addEventListener('mouseleave',()=>{if(!carouselPaused&&carouselSlides.length>1)carouselTimer=window.setInterval(()=>showHeroSlide(carouselActive+1),5500)});
+}
+startHeroCarousel([]);
+const productCard=product=>{
+  const article=document.createElement('article');
+  article.className='card';
+  article.dataset.editorKey='product-'+product.slug;
+  const link=document.createElement('a');
+  link.href='/'+encodeURIComponent(product.page)+'/';
+  const image=document.createElement('img');
+  image.src=imageUrl(product.image);
+  image.alt=product.name;
+  image.loading='lazy';
+  image.decoding='async';
+  const body=document.createElement('div');
+  body.className='card-body';
+  const heading=document.createElement('h3');
+  heading.textContent=product.name;
+  const description=document.createElement('p');
+  description.textContent=product.description;
+  const more=document.createElement('span');
+  more.className='link';
+  more.textContent='Ask us about this';
+  body.append(heading,description,more);
+  link.append(image,body);
+  article.append(link);
+  return article;
+};
+const editableSection=section=>{
+  const wrapper=document.createElement('section');
+  wrapper.className='section editable-section';
+  wrapper.dataset.editorKey='section-'+section.id;
+  const content=document.createElement('div');
+  content.className='wrap editable-section-card';
+  if(section.image){
+    const image=document.createElement('img');
+    image.src=imageUrl(section.image);
+    image.alt=section.title;
+    image.loading='lazy';
+    image.decoding='async';
+    content.append(image);
+  }
+  const copy=document.createElement('div');
+  copy.className='editable-section-copy';
+  const heading=document.createElement('h2');
+  heading.textContent=section.title;
+  copy.append(heading);
+  if(section.body){
+    const body=document.createElement('p');
+    body.textContent=section.body;
+    copy.append(body);
+  }
+  if(section.button_text&&section.button_url){
+    const button=document.createElement('a');
+    button.className='btn btn-primary';
+    button.href=section.button_url;
+    button.textContent=section.button_text;
+    copy.append(button);
+  }
+  content.append(copy);
+  wrapper.append(content);
+  return wrapper;
+};
+const loadSiteContent=async()=>{
+  if(!main)return;
+  const response=await fetch(apiBase+'/api/site-content/',{headers:{'Accept':'application/json'},cache:'no-store'});
+  if(!response.ok)throw new Error('Site content service returned HTTP '+response.status);
+  const content=await response.json();
+  photoOverrides=content.photos||{};
+  document.querySelectorAll('img[src]').forEach(image=>{
+    const source=image.getAttribute('src');
+    if(source&&photoOverrides[source])image.src=imageUrl(photoOverrides[source]);
+  });
+  const page=content.pages?.[pageKey];
+  if(page){
+    const eyebrow=main.querySelector('[data-copy-eyebrow]');
+    if(eyebrow)eyebrow.textContent=page.eyebrow;
+    const intro=main.querySelector('[data-copy-intro]');
+    if(intro)intro.textContent=page.intro;
+    const heading=main.querySelector('[data-copy-heading]');
+    if(heading){
+      const highlight=heading.querySelector('[data-copy-highlight]');
+      if(highlight){
+        const leadingText=[...heading.childNodes].find(node=>node.nodeType===Node.TEXT_NODE);
+        if(leadingText)leadingText.textContent=page.title;
+        highlight.textContent=page.highlight||'';
+        highlight.hidden=!page.highlight;
+      }else heading.textContent=page.title;
+    }
+    if(page.image){
+      if(pageKey==='home')homePageImage=page.image;
+      else{
+        const heroImage=main.querySelector('[data-copy-image]');
+        if(heroImage)heroImage.src=imageUrl(page.image);
+      }
+    }
+  }
+  const products=Array.isArray(content.products)?content.products:[];
+  if(pageKey==='home'){
+    const featured=products.filter(product=>product.featured);
+    const container=main.querySelector('[data-featured-products]');
+    if(container)container.replaceChildren(...featured.map(productCard));
+    startHeroCarousel(featured);
+  }else{
+    const categoryProducts=products.filter(product=>product.page===pageKey);
+    const section=main.querySelector('[data-category-products]');
+    const container=section?.querySelector('[data-product-list]');
+    if(container&&categoryProducts.length){
+      container.replaceChildren(...categoryProducts.map(productCard));
+      section.hidden=false;
+    }
+  }
+  const sections=(Array.isArray(content.sections)?content.sections:[])
+    .filter(section=>section.page===pageKey)
+    .map(editableSection);
+  main.append(...sections);
+  applyVisualEdits(content.visual_edits||[]);
+};
+loadSiteContent().catch(error=>{
+  console.info('Site editor is not connected; showing the built-in page content.',error);
+});
+document.querySelectorAll('[data-quote-form]').forEach(form=>form.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const btn=form.querySelector('button[type=submit]');
+  const status=form.querySelector('[data-form-status]');
+  const fd=new FormData(form);
+  const data=Object.fromEntries(fd.entries());
+  const base=(window.ESICOM_API_BASE_URL||'').replace(/\/$/,'');
+  btn.disabled=true;
+  btn.textContent='Submitting…';
+  status.textContent='';
+  try{
+    const response=await fetch(base+'/api/quote/',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:data.name,company:data.company||'',email:data.email||'',phone:data.phone,needs:(data.service||'Business supplies')+': '+data.details,quantity:data.quantity||'',date:data.date||'',source:'website'})});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(result.detail||'The quote service is temporarily unavailable.');
+    status.textContent='Thank you. Your enquiry has been recorded. Reference: ES-'+result.reference+'. We will follow up using the details provided.';
+    form.reset();
+  }catch(err){
+    const subject=encodeURIComponent('Esicom quote request — '+(data.service||'Business supplies'));
+    const body=encodeURIComponent('Hello Esicom Suppliers,\n\nName: '+data.name+'\nOrganisation: '+(data.company||'Not provided')+'\nPhone: '+data.phone+'\nEmail: '+(data.email||'Not provided')+'\nRequirement: '+(data.service||'Business supplies')+'\nDetails: '+data.details+'\nQuantity: '+(data.quantity||'Not specified')+'\nRequired date: '+(data.date||'Not specified'));
+    status.textContent=err.message+' An email draft will open as a fallback. If it does not open, email esicomsuppliers@gmail.com.';
+    window.location.href='mailto:esicomsuppliers@gmail.com?subject='+subject+'&body='+body;
+  }finally{
+    btn.disabled=false;
+    btn.textContent='Send your enquiry ↗';
+  }
+}));
+const uploadForm=document.querySelector('[data-file-upload-form]');
+if(uploadForm){
+  const fileInput=uploadForm.querySelector('[name=file]');
+  const conversionField=uploadForm.querySelector('[data-conversion-field]');
+  const conversionSelect=uploadForm.querySelector('[name=conversion]');
+  const submitButton=uploadForm.querySelector('[type=submit]');
+  const status=uploadForm.querySelector('[data-upload-status]');
+  const resultPanel=document.querySelector('[data-upload-result]');
+  const downloadLink=resultPanel.querySelector('[data-upload-download]');
+  const shareButton=resultPanel.querySelector('[data-upload-share]');
+  const whatsappLink=resultPanel.querySelector('[data-upload-whatsapp]');
+  const deliveryInputs=uploadForm.querySelectorAll('[name=delivery]');
+  const fileSizeNote=uploadForm.querySelector('[data-file-size-note]');
+  const updateDeliveryUi=()=>{
+    const isEmail=selectedDelivery()==='email';
+    fileSizeNote.textContent=isEmail
+      ?'Email attachments up to 15 MB · Choose WhatsApp to share larger files.'
+      :'Files up to 50 MB · WhatsApp sharing requires confirmation in your messaging app.';
+    submitButton.textContent=isEmail?'Email file to Esicom':'Prepare file for WhatsApp';
+  };
+  let completedSubmission=null;
+  let completedShareFile=null;
+  const selectedDelivery=()=>uploadForm.querySelector('[name=delivery]').value||'email';
+  deliveryInputs.forEach(input=>input.addEventListener('change',updateDeliveryUi));
+  updateDeliveryUi();
+  fileInput.addEventListener('change',()=>{
+    const file=fileInput.files[0];
+    conversionSelect.replaceChildren(new Option('Send original file',''));
+    conversionField.hidden=true;
+    completedSubmission=null;
+    completedShareFile=null;
+    if(!file)return;
+    const extension=file.name.split('.').pop().toLowerCase();
+    const conversions=extension==='pdf'
+      ?[['docx','Word document (.docx)']]
+      :['jpg','jpeg','png','webp'].includes(extension)
+        ?[['jpeg','JPEG (.jpg)'],['png','PNG (.png)'],['webp','WebP (.webp)']]
+        :[];
+    conversions.forEach(([value,label])=>conversionSelect.add(new Option(label,value)));
+    conversionField.hidden=!conversions.length;
+    resultPanel.hidden=true;
+    status.textContent='';
+  });
+  uploadForm.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const file=fileInput.files[0];
+    if(!file)return;
+    const delivery=selectedDelivery();
+    const maxBytes=delivery==='email'?15*1024*1024:50*1024*1024;
+    if(file.size>maxBytes){
+      status.textContent=delivery==='email'
+        ?'Email attachments must be 15 MB or smaller. Choose WhatsApp to share larger files.'
+        :'Choose a file that is 50 MB or smaller.';
+      return;
+    }
+    submitButton.disabled=true;
+    submitButton.textContent=delivery==='email'?'Sending email attachment…':'Preparing WhatsApp file…';
+    status.textContent='';
+    resultPanel.hidden=true;
+    try{
+      const payload=new FormData(uploadForm);
+      payload.set('delivery',delivery);
+      const response=await fetch(apiBase+'/api/file-submissions/',{method:'POST',body:payload});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok){
+        const error=new Error(result.detail||'The file upload service is unavailable.');
+        error.saved=Boolean(result.saved);
+        error.reference=result.reference;
+        throw error;
+      }
+      const downloadUrl=new URL(result.download_url,apiBase?apiBase+'/':location.origin).href;
+      completedSubmission={...result,downloadUrl};
+      completedShareFile=result.converted?null:file;
+      const supportsFileShare=sharedFile=>navigator.share&&navigator.canShare&&navigator.canShare({files:[sharedFile]});
+      shareButton.hidden=delivery!=='whatsapp'||(!result.converted&&!supportsFileShare(file));
+      shareButton.disabled=Boolean(result.converted);
+      shareButton.textContent=result.converted?'Preparing share file…':'Share file…';
+      whatsappLink.hidden=delivery!=='whatsapp';
+      downloadLink.href=downloadUrl;
+      downloadLink.textContent='Download '+result.filename;
+      whatsappLink.href='https://wa.me/254728942669?text='+encodeURIComponent('Hello Esicom Suppliers, I submitted file reference ES-F'+result.reference+'.');
+      resultPanel.querySelector('[data-upload-confirmation]').textContent=delivery==='email'
+        ?'Your file was emailed to Esicom as an attachment. Reference: ES-F'+result.reference+'. A private backup copy stays available until staff deletes the submission.'
+        :'Your file is ready to share. Choose Share file, select WhatsApp and Esicom, then confirm Send. Reference: ES-F'+result.reference+'.';
+      resultPanel.querySelector('[data-upload-whatsapp-note]').hidden=delivery!=='whatsapp';
+      resultPanel.hidden=false;
+      uploadForm.reset();
+      conversionField.hidden=true;
+      updateDeliveryUi();
+      status.textContent='';
+      if(result.converted&&navigator.share&&navigator.canShare){
+        fetch(downloadUrl).then(response=>{
+          if(!response.ok)throw new Error('The prepared file could not be downloaded.');
+          return response.blob();
+        }).then(blob=>{
+          completedShareFile=new File([blob],result.filename,{type:blob.type||'application/octet-stream'});
+          if(supportsFileShare(completedShareFile)){
+            shareButton.hidden=false;
+            shareButton.disabled=false;
+            shareButton.textContent='Share file…';
+          }else{
+            shareButton.hidden=true;
+            resultPanel.querySelector('[data-upload-whatsapp-note]').hidden=false;
+          }
+        }).catch(error=>{
+          shareButton.hidden=true;
+          shareButton.disabled=true;
+          status.textContent=error.message+' You can still download the file and attach it in WhatsApp.';
+          resultPanel.querySelector('[data-upload-whatsapp-note]').hidden=false;
+        });
+      }else if(result.converted){
+        shareButton.hidden=true;
+        resultPanel.querySelector('[data-upload-whatsapp-note]').hidden=false;
+      }
+    }catch(error){
+      status.textContent=error.saved
+        ?error.message
+        :error.message+' Your file has not been confirmed as sent; please try again.';
+    }finally{
+      submitButton.disabled=false;
+      updateDeliveryUi();
+    }
+  });
+  shareButton.addEventListener('click',()=>{
+    if(!completedSubmission||!completedShareFile)return;
+    try{
+      if(!navigator.share||!navigator.canShare||!navigator.canShare({files:[completedShareFile]})){
+        status.textContent='Your file is ready. Download it, open WhatsApp, and attach the file to your message.';
+        return;
+      }
+      navigator.share({files:[completedShareFile],title:'File for Esicom Suppliers',text:'File submission ES-F'+completedSubmission.reference}).catch(error=>{
+        if(error.name!=='AbortError')status.textContent=error.message||'File sharing is unavailable in this browser. Download the file and attach it in WhatsApp.';
+      });
+    }catch(error){
+      if(error.name!=='AbortError')status.textContent=error.message||'File sharing is unavailable in this browser. Download the file and attach it in WhatsApp.';
+    }
+  });
+}
+const qrImage=document.querySelector('[data-upload-qr]');
+if(qrImage){
+  const qrUrl=apiBase+'/api/file-upload-qr/';
+  qrImage.src=qrUrl;
+  const downloadQr=document.querySelector('[data-qr-download]');
+  if(downloadQr)downloadQr.href=qrUrl;
+}
+document.querySelector('[data-print-qr]')?.addEventListener('click',()=>window.print());
+})();'''
+
+NAV = [('/office-supplies/','Office supplies'),('/computer-consumables/','Computer consumables'),('/bulk-printing/','Bulk printing'),('/branding/','Branding'),('/about/','About'),('/contact/','Contact'),('/send-file/','Send a file')]
+
+def esc(s):
+    return str(s).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;').replace('"','&quot;')
+
+def header(path):
+    links=''.join(f'<a href="{href}"'+(' aria-current="page"' if path==href else '')+f'>{label}</a>' for href,label in NAV)
+    return f'''<a class="skip-link" href="#main-content">Skip to main content</a><div class="topline"><div class="wrap"><span>SUPPLY. PRINT. BRAND.</span><span>Chaka Place Building · Nairobi, Kenya &nbsp; | &nbsp; <a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a></span></div></div><header class="header"><div class="wrap navrow"><a class="brand" href="/" aria-label="Esicom Suppliers home"><span class="brand-mark">E.</span><span><span class="brand-name">ESICOM</span><span class="brand-sub">Suppliers</span></span></a><nav class="navlinks" aria-label="Main navigation">{links}</nav><div class="nav-actions"><a class="btn btn-light catalogue-btn" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Catalogue ↓</a><a class="btn btn-primary quote-btn" href="/contact/">Request a quote ↗</a><button class="menu-btn" data-menu-button aria-controls="mobile-navigation" aria-expanded="false" aria-label="Open navigation">☰</button></div></div><nav class="mobile-nav" id="mobile-navigation" data-mobile-nav aria-label="Mobile navigation">{links}<a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Download product catalogue (PDF)</a><a href="/contact/">Request a quote ↗</a></nav></header>'''
+
+def footer():
+    return '''<footer class="footer"><div class="wrap"><div class="footer-grid"><div><a class="brand" href="/" style="color:white"><span class="brand-mark" style="background:#fff;color:#10243d">E.</span><span><span class="brand-name">ESICOM</span><span class="brand-sub" style="color:#b9c8d8">Suppliers</span></span></a><p style="max-width:290px;line-height:1.8">Office essentials, computer consumables, bulk printing and corporate branding.</p><p style="font:800 18px Manrope,sans-serif;color:white">SUPPLY. PRINT. BRAND.</p></div><div><h3>Products</h3><div class="footer-links"><a href="/office-supplies/">Office supplies</a><a href="/paper-filing/">Paper & filing</a><a href="/computer-consumables/">Computer consumables</a><a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Product catalogue (PDF)</a></div></div><div><h3>Services</h3><div class="footer-links"><a href="/bulk-printing/">Bulk printing</a><a href="/branding/">Corporate branding</a><a href="/business-cards/">Business cards</a><a href="/branded-apparel/">Branded apparel</a><a href="/diaries-asset-tags/">Diaries & asset tags</a><a href="/send-file/">Send a file</a><a href="/file-qr/">Print the file QR</a></div></div><div><h3>Contact</h3><div class="footer-links"><a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a><a href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20have%20an%20enquiry." target="_blank" rel="noopener noreferrer">WhatsApp · 0728 942 669</a><p>Chaka Place Building,<br>Arwings Kodhek Road,<br>Nairobi, Kenya</p><a href="https://www.google.com/maps/search/?api=1&query=Chaka+Place+Building%2C+Arwings+Kodhek+Road%2C+Nairobi%2C+Kenya" target="_blank" rel="noopener noreferrer">Open location in Maps ↗</a><a href="/admin/" rel="nofollow">Staff content editor ↗</a></div></div></div><div class="footer-bottom"><span>© <span data-year></span> Esicom Suppliers. All rights reserved.</span><span>Product availability and quotations confirmed on enquiry.</span></div></div></footer><a class="whatsapp" href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20would%20like%20to%20make%20an%20enquiry." target="_blank" rel="noopener noreferrer" aria-label="Chat with Esicom Suppliers on WhatsApp">◉ WhatsApp us</a><script>document.querySelector('[data-year]').textContent=new Date().getFullYear()</script><script src="/site.js?v=5" defer></script>'''
+
+def catalogue_callout():
+    return '<div class="catalogue-callout"><div><strong>Prefer a quick overview?</strong><p>Download the product and services catalogue as a PDF.</p></div><a class="btn btn-primary" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Download catalogue ↓</a></div>'
+
+def quote_form():
+    return '''<form class="quote-form" data-quote-form><h2>Let’s start with your brief</h2><p>Tell us a little about what your team needs. We’ll follow up to talk through the details.</p><div class="form-grid"><label class="field">Full name *<input name="name" required minlength="2" maxlength="120" autocomplete="name" placeholder="Your full name"></label><label class="field">Organisation<input name="company" maxlength="160" autocomplete="organization" placeholder="Company or organisation"></label><label class="field">Phone number *<input name="phone" required maxlength="40" autocomplete="tel" placeholder="Your best contact number"></label><label class="field">Email address<input name="email" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com"></label><label class="field full">What do you need? *<select name="service" required><option value="Office supplies">Office supplies</option><option value="Computer consumables">Computer consumables</option><option value="Bulk printing">Bulk printing</option><option value="Corporate branding">Corporate branding</option><option value="Business cards">Business cards</option><option value="Branded apparel">Branded apparel</option><option value="Diaries and asset tags">Diaries and asset tags</option><option value="Other requirement">Other requirement</option></select></label><label class="field">Estimated quantity<input name="quantity" maxlength="100" placeholder="If known"></label><label class="field">Required date<input name="date" type="date"></label><label class="field full">Tell us more *<textarea name="details" required minlength="8" maxlength="5000" placeholder="Add product names, quantities, specifications, artwork or timing."></textarea></label></div><button type="submit" class="btn btn-primary" style="width:100%;margin-top:20px">Send your enquiry ↗</button><a class="btn btn-light" style="width:100%;margin-top:10px" href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20would%20like%20a%20quote." target="_blank" rel="noopener noreferrer">Continue on WhatsApp ↗</a><div class="form-status" data-form-status role="status" aria-live="polite"></div><p style="margin-top:12px;font-size:11px">Prefer email? <a href="mailto:esicomsuppliers@gmail.com"><b>esicomsuppliers@gmail.com</b></a></p></form>'''
+
+def card(href, image, title, desc, label='Explore details', credit=None):
+    credit_html=f'<small class="photo-credit">{credit}</small>' if credit else ''
+    return f'<article class="card"><a href="{href}"><img src="{image}" alt="{esc(title)}" loading="lazy"><div class="card-body"><h3>{esc(title)}</h3><p>{esc(desc)}</p><span class="link">{label}</span></div></a>{credit_html}</article>'
+
+def home_content():
+    products=card('/office-supplies/','/images/photography/stock-boxed-pens.webp','Packaged pen','A real packaged pen. Ask us about the pens and everyday stationery your team needs.',credit='<a href="https://commons.wikimedia.org/wiki/File:Colorex_in_Verpackung.jpg" target="_blank" rel="noopener noreferrer">Photo: Oliver Laumann · CC BY-SA 4.0</a>')+card('/computer-consumables/','/images/photography/computer.webp','Computer consumables','Toners, cartridges and computer essentials. Tell us your printer model.')+card('/paper-filing/','/images/photography/stock-copy-paper.webp','Copy paper by the ream','A real photo of copy-paper reams. Ask us about paper sizes and quantities.',credit='<a href="https://commons.wikimedia.org/wiki/File:6_reams_of_paper_stacked_on_the_floor.jpg" target="_blank" rel="noopener noreferrer">Photo: Sage Ross · CC BY-SA 3.0</a>')
+    services='''<a class="service-feature" href="/bulk-printing/"><img src="/images/photography/printing.webp" alt="Printed pages prepared for a business print job" loading="lazy"><div><h3>Bulk printing</h3><p>Business documents and printed materials, planned around your brief.</p><span class="link" style="color:#fff">Explore printing</span></div></a><a class="service-feature" href="/branding/"><img src="/images/photography/apparel.webp" alt="Plain shirt ready for a branded apparel enquiry" loading="lazy"><div><h3>Corporate branding</h3><p>Business cards, apparel, diaries and the details that carry your identity.</p><span class="link" style="color:#fff">Explore branding</span></div></a><a class="service-feature" href="/about/"><img src="/images/photography/meeting-room.webp" alt="Bright modern meeting room" loading="lazy"><div><h3>One helpful point of contact</h3><p>Office supplies, printing and branding brought together in Nairobi.</p><span class="link" style="color:#fff">Get to know Esicom</span></div></a>'''
+    branded=card('/business-cards/','/images/photography/printing.webp','Business cards','Printed details that help your team make a consistent first impression.')+card('/branded-apparel/','/images/photography/apparel.webp','Branded apparel','An easy way to bring your team’s identity together.')+card('/diaries-asset-tags/','/images/photography/stationery.webp','Diaries & asset tags','Practical branded stationery and identification enquiries.')
+    return f'''<main><section class="hero"><div class="wrap hero-grid"><div><div class="eyebrow" data-copy-eyebrow>A Nairobi supplier for the workday</div><h1 data-copy-heading>Everything your office<br><span data-copy-highlight>needs.</span></h1><p class="lead" data-copy-intro>Everyday stationery, printing supplies and branded merchandise. Tell us what you need; we’ll take it from there.</p><div class="actions"><a class="btn btn-primary" href="/contact/">Tell us what you need ↗</a><a class="btn btn-light" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Browse the catalogue ↓</a></div><div style="margin-top:25px"><span class="mockup-label">Chaka Place · Nairobi, Kenya</span></div></div><div class="hero-visual"><div class="floating-note">Your local business supplier</div><img data-copy-image src="/images/photography/workspace.webp" alt="Bright, organized office workspace" fetchpriority="high" decoding="async"><div class="visual-caption">Office essentials. Printing. Your brand.</div></div></div></section><section class="strip"><div class="wrap strip-grid"><div class="strip-item"><b>01</b><span>Office & workplace</span></div><div class="strip-item"><b>02</b><span>Computer essentials</span></div><div class="strip-item"><b>03</b><span>Business printing</span></div><div class="strip-item"><b>04</b><span>Corporate branding</span></div></div></section><section class="section"><div class="wrap"><div class="section-head"><div><div class="eyebrow">SUPPLY · THE EVERYDAY ESSENTIALS</div><h2>The things every office runs on.</h2></div><p>Boxes of pens, reams of paper and the essentials your team reaches for every day. Tell us what you need and we’ll put together a quote.</p></div><div class="cards" data-featured-products>{products}</div>{catalogue_callout()}</div></section><section class="section dark"><div class="wrap"><div class="section-head"><div><div class="eyebrow">PRINT · BRAND · Bring your brief</div><h2>Print, paper and branded merchandise.</h2></div><p>Send us your artwork, list or logo. We’ll help you work through the details.</p></div><div class="service-panel premium-services">{services}</div></div></section><section class="section white"><div class="wrap"><div class="section-head"><div><div class="eyebrow">BRAND · THE LITTLE THINGS</div><h2>Put your name on something useful.</h2></div><p>From shirts and diaries to everyday stationery, ask us about branded items for your team.</p></div><div class="cards">{branded}</div></div></section><section class="section"><div class="wrap"><div class="cta-band"><div><div class="eyebrow">A simpler next step</div><h2>Have a list or a logo?</h2><p style="margin:0;color:var(--muted)">Send it over. We’ll help you take it from there.</p></div><a class="btn btn-primary" href="/contact/">Start a conversation ↗</a></div></div></section></main>'''
+
+def detail_content(path,data):
+    items=data.get('items',[])
+    if data['kind']=='branding':
+        cards=card('/business-cards/','/images/photography/printing.webp','Business cards','Professional business card enquiries for meetings, introductions and networking.')+card('/branded-apparel/','/images/photography/apparel.webp','Branded shirts','Branded apparel enquiries for teams, events and everyday use.')+card('/diaries-asset-tags/','/images/photography/stationery.webp','Diaries & asset tags','Practical branded stationery and identification materials.')
+        extra=f'<section class="section"><div class="wrap"><div class="section-head"><div><div class="eyebrow">Explore branding</div><h2>Choose a starting point.</h2></div><p>Photography is illustrative, not a portfolio of completed customer projects. Share your artwork and requirements for a tailored quotation.</p></div><div class="cards">{cards}</div></div></section>'
+    else: extra=''
+    lis=''.join(f'<div class="check-item">{esc(x)}</div>' for x in items)
+    return f'''<main><section class="page-hero"><div class="wrap page-hero-grid"><div><div class="eyebrow" data-copy-eyebrow>{esc(data['eyebrow'])}</div><h1 data-copy-heading>{esc(data['title'])}</h1><p data-copy-intro>{esc(data['intro'])}</p><div class="actions"><a class="btn btn-primary" href="/contact/">Tell us what you need ↗</a><a class="btn btn-light" href="/catalogue/esicom-suppliers-catalogue.pdf" download>View the catalogue ↓</a></div></div><img data-copy-image src="{data['image']}" alt="Photograph illustrating {esc(data['eyebrow'].lower())}" loading="eager" decoding="async"></div></section><section class="section"><div class="wrap detail-grid"><div><div class="eyebrow">What do you need?</div><h2 style="font:800 clamp(29px,4vw,45px)/1.1 Manrope,sans-serif;letter-spacing:-.05em;margin:15px 0">Send us a list.<br><span style="color:var(--blue)">We’ll take it from there.</span></h2><p style="color:var(--muted);line-height:1.85">Add the sizes, quantities or product details you already know. We’ll follow up if we need anything else.</p><a class="btn btn-primary" href="/contact/">Ask us for a quote ↗</a></div><div class="check-list">{lis}</div></div></section><section class="section category-products" data-category-products data-category="{path.strip('/')}" hidden><div class="wrap"><div class="section-head"><div><div class="eyebrow">IN THE CATALOGUE</div><h2>Products we can help you source.</h2></div></div><div class="cards" data-product-list></div></div></section>{extra}<section class="section white"><div class="wrap"><div class="cta-band"><div><div class="eyebrow">A simpler next step</div><h2>Have a list or a logo?</h2><p style="margin:0;color:var(--muted)">Send it over. We’ll help you take it from there.</p></div><a class="btn btn-primary" href="/contact/">Start a conversation ↗</a></div></div></section></main>'''
+
+def contact_content(data):
+    return f'''<main><section class="page-hero"><div class="wrap page-hero-grid"><div><div class="eyebrow" data-copy-eyebrow>{data['eyebrow']}</div><h1 data-copy-heading>{data['title']}</h1><p data-copy-intro>{data['intro']}</p><span class="mockup-label">Chaka Place · Nairobi, Kenya</span></div><img data-copy-image src="{data['image']}" alt="A light-filled contemporary workspace" loading="eager" decoding="async"></div></section><section class="section"><div class="wrap form-layout"><div><div class="eyebrow">Contact Esicom</div><h2 style="font:800 clamp(30px,4vw,46px)/1.1 Manrope,sans-serif;letter-spacing:-.05em;margin:15px 0">A real conversation starts here.</h2><p style="color:var(--muted);line-height:1.8">Call, write or send a note about what your team needs. We’re based at Chaka Place in Nairobi.</p><div class="contact-list"><a class="contact-item" href="mailto:esicomsuppliers@gmail.com"><span class="contact-icon">✉</span><span><small>Email us</small><b>esicomsuppliers@gmail.com</b></span></a><a class="contact-item" href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20would%20like%20to%20discuss%20a%20quotation." target="_blank" rel="noopener noreferrer"><span class="contact-icon">◉</span><span><small>WhatsApp enquiries</small><b>0728 942 669</b></span></a><div class="contact-item"><span class="contact-icon">⌖</span><span><small>Visit us</small><b>Chaka Place Building, Arwings Kodhek Road</b><small>Nairobi, Kenya</small></span></div><a class="link" href="https://www.google.com/maps/search/?api=1&query=Chaka+Place+Building%2C+Arwings+Kodhek+Road%2C+Nairobi%2C+Kenya" target="_blank" rel="noopener noreferrer">Open location in Maps ↗</a></div></div>{quote_form()}</div></section></main>'''
+
+def upload_content():
+    return '''<main><section class="upload-shell"><div class="wrap upload-grid"><form class="upload-card" data-file-upload-form><div class="eyebrow">SEND A FILE</div><h1>Share a file with Esicom.</h1><p>Choose a file, select email or WhatsApp, then send it to our team.</p><label class="field">File *<input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required></label><p class="upload-note" data-file-size-note>Email attachments up to 15 MB · Choose WhatsApp to share larger files.</p><label class="field">Send using<select name="delivery"><option value="email">Email the file to Esicom</option><option value="whatsapp">Share the file with Esicom on WhatsApp</option></select></label><label class="field" data-conversion-field hidden>Convert to<select name="conversion"><option value="">Send original file</option></select></label><label class="field">Your name (optional)<input name="name" maxlength="120" autocomplete="name"></label><label class="field">Phone number (optional)<input name="phone" maxlength="40" autocomplete="tel"></label><label class="field">Message for Esicom (optional)<textarea name="note" maxlength="500" rows="3" placeholder="Add a short note about your file"></textarea></label><label class="field"><input type="checkbox" name="delivery_consent" required> I agree to send this file to Esicom using the delivery method selected above.</label><div aria-hidden="true" style="position:absolute;left:-10000px"><label>Leave this empty<input name="website" tabindex="-1" autocomplete="off"></label></div><button type="submit" class="btn btn-primary" style="width:100%;margin-top:20px">Email file to Esicom</button><p class="upload-note">PDF, JPG, PNG or WebP · Files stay private until Esicom staff deletes them.</p><div class="form-status" data-upload-status role="status" aria-live="polite"></div></form><aside class="upload-card"><div class="eyebrow">WHAT HAPPENS NEXT</div><h2>Email or WhatsApp.</h2><p>Email sends the actual file as an attachment to Esicom. WhatsApp opens your phone’s share screen; choose WhatsApp and the Esicom chat, then tap Send.</p><p class="upload-note">Email attachments are limited to 15 MB so email providers can accept them. WhatsApp sharing supports files up to 50 MB. PDF-to-Word conversion is best-effort and may change complex layouts; scanned PDFs need OCR for editable text.</p><a class="link" href="/file-qr/">Get the printable QR code ↗</a><div class="upload-result" data-upload-result hidden><p data-upload-confirmation role="status"></p><a class="btn btn-light" data-upload-download href="#">Download file</a><button type="button" class="btn btn-primary" data-upload-share hidden>Share file…</button><a class="btn btn-light" data-upload-whatsapp target="_blank" rel="noopener noreferrer">Open WhatsApp</a><p class="upload-note" data-upload-whatsapp-note hidden>If file sharing is unavailable in your browser, download the file and attach it to the Esicom WhatsApp chat.</p></div></aside></div></section></main>'''
+
+def file_qr_content():
+    return '''<main><section class="qr-shell"><div class="wrap"><div class="qr-card"><div class="eyebrow" style="justify-content:center">ESICOM SUPPLIERS · FILE UPLOAD</div><h1>Scan to send us a file.</h1><p class="qr-instructions">Scan this code with a phone camera to open our upload page. Customers can attach a PDF or photo, convert it if needed, and send it securely to our team.</p><img class="qr-image" data-upload-qr alt="QR code linking to the Esicom file upload page"><p class="upload-note">Files are private and stay available until Esicom staff deletes them. Uploads are limited to 50 MB. WhatsApp sharing requires the customer to confirm sending.</p><div class="qr-actions"><button class="btn btn-primary" type="button" data-print-qr>Print QR code</button><a class="btn btn-light" data-qr-download download="esicom-file-upload-qr.png">Download QR image</a><a class="btn btn-light" href="/send-file/">Open upload page</a></div></div></div></section></main>'''
+
+def page_html(path,data):
+    content=home_content() if data['kind']=='home' else contact_content(data) if data['kind']=='contact' else upload_content() if data['kind']=='upload' else file_qr_content() if data['kind']=='qr' else detail_content(path,data)
+    title='Esicom Suppliers | '+('Supply. Print. Brand.' if path=='/' else data['eyebrow'].title())
+    desc=esc(data['intro'])
+    page_key='home' if path=='/' else path.strip('/')
+    content=content.replace('<main>','<main id="main-content" tabindex="-1" data-content-page="'+page_key+'">',1)
+    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="{NAVY}"><meta name="description" content="{desc}"><meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{desc}"><title>{esc(title)}</title><link rel="stylesheet" href="/styles.css?v=4"><script src="/site-config.js?v=3"></script></head><body>{header(path)}{content}{footer()}</body></html>'''
+
+def main():
+    if DIST.exists(): shutil.rmtree(DIST)
+    DIST.mkdir(parents=True)
+    (DIST/'styles.css').write_text(CSS,encoding='utf-8')
+    (DIST/'site.js').write_text(JS,encoding='utf-8')
+    if (ASSETS/'site-config.js').is_file(): shutil.copy2(ASSETS/'site-config.js', DIST/'site-config.js')
+    if ASSETS.exists():
+        shutil.copytree(ASSETS,DIST,dirs_exist_ok=True)
+    api_base=os.environ.get('ESICOM_API_BASE_URL','').strip().rstrip('/')
+    if api_base:
+        parsed_api_base=urlsplit(api_base)
+        if parsed_api_base.scheme!='https' or not parsed_api_base.netloc or parsed_api_base.path not in ('','/') or parsed_api_base.query or parsed_api_base.fragment:
+            raise SystemExit('BUILD FAILED: ESICOM_API_BASE_URL must be an HTTPS origin, such as https://esicom-api.onrender.com')
+        (DIST/'site-config.js').write_text(
+            'window.ESICOM_API_BASE_URL = '+json.dumps(api_base)+';\n',
+            encoding='utf-8',
+        )
+    for path,data in PAGES.items():
+        folder=DIST if path=='/' else DIST/path.strip('/')
+        folder.mkdir(parents=True,exist_ok=True)
+        (folder/'index.html').write_text(page_html(path,data),encoding='utf-8')
+    # Build aliases to preserve service-specific routes from the previous project.
+    aliases={'/products/office-supplies/':'/office-supplies/','/products/computer-consumables/':'/computer-consumables/','/products/paper-filing/':'/paper-filing/','/services/printing/':'/bulk-printing/','/services/branding/':'/branding/','/services/business-cards/':'/business-cards/','/services/branded-apparel/':'/branded-apparel/','/services/diaries-asset-tags/':'/diaries-asset-tags/','/products/':'/office-supplies/'}
+    for alias,target in aliases.items():
+        folder=DIST/alias.strip('/'); folder.mkdir(parents=True,exist_ok=True)
+        (folder/'index.html').write_text(f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url={target}"><link rel="canonical" href="{target}"><title>Continue to Esicom Suppliers</title></head><body><p>This page has moved. <a href="{target}">Continue to the relevant page</a>.</p></body></html>',encoding='utf-8')
+    # Build gate: all expected pages, key facts, internal targets and assets must exist.
+    required=['index.html','office-supplies/index.html','computer-consumables/index.html','bulk-printing/index.html','branding/index.html','about/index.html','contact/index.html','send-file/index.html','file-qr/index.html','catalogue/esicom-suppliers-catalogue.pdf','images/photography/workspace.webp','images/photography/stationery.webp','images/photography/computer.webp','images/photography/printing.webp','images/photography/apparel.webp','images/photography/meeting-room.webp','images/photography/notebook.webp','images/photography/stock-boxed-pens.webp','images/photography/stock-copy-paper.webp','styles.css','site.js']
+    missing=[x for x in required if not (DIST/x).is_file()]
+    if missing: raise SystemExit('BUILD FAILED: missing files: '+', '.join(missing))
+    bad=['10+ years','500+ clients','same-day delivery','nationwide delivery','SME support','authorized distributor','certifications']
+    content='\n'.join(p.read_text(errors='ignore') for p in DIST.rglob('*.html')).lower()
+    found=[x for x in bad if x in content]
+    if found: raise SystemExit('BUILD FAILED: unsupported claims found: '+', '.join(found))
+    if '/images/mockups/' in content or 'images.unsplash.com/' in content:
+        raise SystemExit('BUILD FAILED: pages must use local photography assets, not mockups or remote photos')
+    for path in PAGES:
+        p = DIST/'index.html' if path=='/' else DIST/path.strip('/')/'index.html'
+        txt=p.read_text()
+        if PAGES[path]['kind']=='upload':
+            if any(value not in txt for value in ('data-file-upload-form', '15 MB', '50 MB', 'delivery_consent', 'until Esicom staff deletes them')):
+                raise SystemExit('BUILD FAILED: file upload page is missing its delivery options, consent, or stated limits.')
+            continue
+        if PAGES[path]['kind']=='qr':
+            if 'data-upload-qr' not in txt or 'data-print-qr' not in txt:
+                raise SystemExit('BUILD FAILED: printable file-upload QR page is incomplete.')
+            continue
+        if 'esicomsuppliers@gmail.com' not in txt or '0728 942 669' not in txt:
+            raise SystemExit(f'BUILD FAILED: contact detail missing from {p.relative_to(DIST)}')
+        page_key='home' if path=='/' else path.strip('/')
+        if f'data-content-page="{page_key}"' not in txt or 'data-copy-image' not in txt:
+            raise SystemExit(f'BUILD FAILED: CMS page or hero-image wiring missing from {p.relative_to(DIST)}')
+        if PAGES[path]['kind']=='home' and 'data-featured-products' not in txt:
+            raise SystemExit('BUILD FAILED: homepage product listing is not CMS-ready')
+        if PAGES[path]['kind']=='detail' and 'data-category-products' not in txt:
+            raise SystemExit(f'BUILD FAILED: category product listing is not CMS-ready on {p.relative_to(DIST)}')
+    print(f'BUILD OK: {len(list(DIST.rglob("index.html")))} HTML pages, catalogue PDF and locally stored photography written to {DIST}')
+
+if __name__=='__main__': main()
+
+===== frontend\vercel.json =====
+
+{
+  "rewrites": [
+    { "source": "/api/:path*",    "destination": "https://esicom-suppliers.onrender.com/api/:path*" },
+    { "source": "/admin/:path*",  "destination": "https://esicom-suppliers.onrender.com/admin/:path*" },
+    { "source": "/static/:path*", "destination": "https://esicom-suppliers.onrender.com/static/:path*" },
+    { "source": "/media/:path*",  "destination": "https://esicom-suppliers.onrender.com/media/:path*" }
+  ]
+}
+
+===== frontend\package.json =====
+
+{
+  "name": "esicom-suppliers-website",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Dependency-free multi-page Esicom Suppliers website with Django quote API",
+  "scripts": {
+    "build": "python build.py",
+    "preview": "python -m http.server 4173 --directory dist"
+  }
+}
+
+===== frontend\public\site-config.js =====
+
+/* Local static previews use Django on port 8000; production stays same-origin. */
+window.ESICOM_API_BASE_URL = window.ESICOM_API_BASE_URL || (
+  ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
+  ['4173', '4174', '5173'].includes(window.location.port)
+    ? 'http://127.0.0.1:8000'
+    : ''
+);
+
+===== frontend\index.html =====
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#10243d" />
+    <meta name="description" content="Esicom Suppliers provides business supplies, computer and printing consumables, bulk printing, and corporate branding in Nairobi, Kenya." />
+    <meta property="og:title" content="Esicom Suppliers — Supply. Print. Brand." />
+    <meta property="og:description" content="Business essentials, printing and corporate branding from one reliable partner." />
+    <title>Esicom Suppliers — Supply. Print. Brand.</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

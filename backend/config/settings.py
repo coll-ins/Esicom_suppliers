@@ -3,7 +3,7 @@ from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-only-change-this-before-deployment')
-DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() == 'true'
+DEBUG = os.environ.get('DJANGO_DEBUG', 'false').lower() == 'true'
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if h.strip()]
 INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
@@ -99,3 +99,5 @@ X_FRAME_OPTIONS = 'DENY'
 
 if not DEBUG and not ESICOM_PUBLIC_SITE_URL.startswith('https://'):
     raise ImproperlyConfigured('Set ESICOM_PUBLIC_SITE_URL to the public HTTPS website URL in production.')
+
+CSRF_TRUSTED_ORIGINS = ['https://YOUR-VERCEL-DOMAIN.vercel.app']
