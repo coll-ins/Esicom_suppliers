@@ -452,6 +452,7 @@ let carouselTimer=null;
 let carouselTransition=null;
 let carouselPaused=visualEditorMode||window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 let homePageImage='';
+let visualEditsCache=[];
 const showHeroSlide=index=>{
   if(!heroCarousel||!carouselSlides.length)return;
   const image=heroCarousel.querySelector('[data-hero-slide-image]');
@@ -472,6 +473,7 @@ const showHeroSlide=index=>{
     category.textContent=slide.category;
     title.textContent=slide.title;
     image.classList.remove('is-changing');
+    if(carouselActive===0&&heroCarousel){applyVisualEdits(visualEditsCache.filter(e=>{const t=document.querySelector(e.selector);return t&&heroCarousel.contains(t);}));}
   };
   if(visualEditorMode)renderSlide();
   else carouselTransition=window.setTimeout(renderSlide,150);
@@ -588,6 +590,7 @@ const loadSiteContent=async()=>{
   if(!response.ok)throw new Error('Site content service returned HTTP '+response.status);
   const content=await response.json();
   photoOverrides=content.photos||{};
+  visualEditsCache=content.visual_edits||[];
   document.querySelectorAll('img[src]').forEach(image=>{
     const source=image.getAttribute('src');
     if(source&&photoOverrides[source])image.src=imageUrl(photoOverrides[source]);

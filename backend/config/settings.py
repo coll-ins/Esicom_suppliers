@@ -1,4 +1,4 @@
-import os
+﻿import os
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -100,4 +100,3 @@ X_FRAME_OPTIONS = 'DENY'
 if not DEBUG and not ESICOM_PUBLIC_SITE_URL.startswith('https://'):
     raise ImproperlyConfigured('Set ESICOM_PUBLIC_SITE_URL to the public HTTPS website URL in production.')
 
-CSRF_TRUSTED_ORIGINS = ['https://YOUR-VERCEL-DOMAIN.vercel.app']

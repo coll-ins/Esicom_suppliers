@@ -19,3 +19,8 @@
 
 # User-submitted files are private
 backend/media/
+
+bundle.txt
+editor-files.txt
+settings-safe.txt
+structure.txt
