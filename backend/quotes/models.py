@@ -52,6 +52,15 @@ def validate_image_size(image):
         raise ValidationError('Images must be 8 MB or smaller.')
 
 
+def public_image_storage():
+    from os import environ
+    if environ.get('CLOUDINARY_URL'):
+        from cloudinary_storage.storage import MediaCloudinaryStorage
+        return MediaCloudinaryStorage()
+    from django.core.files.storage import FileSystemStorage
+    return FileSystemStorage()
+
+
 def content_image_path(instance, filename):
     extension = Path(filename).suffix.lower()
     if isinstance(instance, CatalogItem):
@@ -66,6 +75,7 @@ class PageContent(models.Model):
     highlight = models.CharField(max_length=80, blank=True)
     intro = models.TextField(max_length=500)
     hero_image = models.ImageField(
+        storage=public_image_storage,
         upload_to=content_image_path,
         blank=True,
         validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']), validate_image_size],
@@ -102,6 +112,7 @@ class CatalogItem(models.Model):
     slug = models.SlugField(max_length=140, unique=True, blank=True)
     description = models.CharField(max_length=280)
     image = models.ImageField(
+        storage=public_image_storage,
         upload_to=content_image_path,
         validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']), validate_image_size],
         help_text='Upload a clear photo of the actual product or branded merchandise.',
@@ -147,6 +158,7 @@ class CatalogItem(models.Model):
 class SitePhoto(models.Model):
     source_path = models.CharField(max_length=120, choices=SITE_PHOTO_CHOICES, unique=True)
     image = models.ImageField(
+        storage=public_image_storage,
         upload_to=content_image_path,
         validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']), validate_image_size],
         help_text='Upload a JPG, PNG or WebP image no larger than 8 MB.',
@@ -179,6 +191,7 @@ class PageSection(models.Model):
     title = models.CharField(max_length=140)
     body = models.TextField(max_length=1600, blank=True)
     image = models.ImageField(
+        storage=public_image_storage,
         upload_to=content_image_path,
         blank=True,
         validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']), validate_image_size],
@@ -242,6 +255,7 @@ class VisualEdit(models.Model):
     text_value = models.TextField(blank=True)
     text_enabled = models.BooleanField(default=False)
     image = models.ImageField(
+        storage=public_image_storage,
         upload_to=content_image_path,
         blank=True,
         validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']), validate_image_size],

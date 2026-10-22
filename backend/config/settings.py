@@ -102,3 +102,6 @@ if not DEBUG and not ESICOM_PUBLIC_SITE_URL.startswith('https://'):
 
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
+
+if os.environ.get('CLOUDINARY_URL'):
+    INSTALLED_APPS = list(INSTALLED_APPS) + ['cloudinary_storage', 'cloudinary']
