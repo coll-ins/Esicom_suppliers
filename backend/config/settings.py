@@ -100,3 +100,5 @@ X_FRAME_OPTIONS = 'DENY'
 if not DEBUG and not ESICOM_PUBLIC_SITE_URL.startswith('https://'):
     raise ImproperlyConfigured('Set ESICOM_PUBLIC_SITE_URL to the public HTTPS website URL in production.')
 
+
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]

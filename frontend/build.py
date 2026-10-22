@@ -473,6 +473,7 @@ const showHeroSlide=index=>{
     category.textContent=slide.category;
     title.textContent=slide.title;
     image.classList.remove('is-changing');
+    if(heroCarousel){heroCarousel.querySelectorAll('[style]').forEach(el=>{el.style.fontFamily='';el.style.fontSize='';el.style.color='';el.style.display='';});}
     if(carouselActive===0&&heroCarousel){applyVisualEdits(visualEditsCache.filter(e=>{const t=document.querySelector(e.selector);return t&&heroCarousel.contains(t);}));}
   };
   if(visualEditorMode)renderSlide();
