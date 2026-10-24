@@ -24,7 +24,7 @@ PAGES = {
  '/diaries-asset-tags/': {'title':'Useful things, with your name on them.', 'eyebrow':'DIARIES & ASSET TAGS', 'intro':'Branded diaries, stationery and asset tags for your organisation.', 'image':'/images/photography/stationery.webp', 'items':['Branded diaries','Branded stationery','Asset tags','Organisation and identification materials','Bulk quotation enquiries'], 'kind':'detail'},
 }
 
-CSS = r'''@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+CSS = r'''@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;500;600;700;800&display=swap');
 :root{--navy:#10243d;--blue:#183f67;--pale:#eaf1f8;--paper:#f5f8fc;--muted:#65768a;--line:#dbe4ed;--white:#fff;--shadow:0 22px 70px rgba(16,36,61,.12)}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--paper);color:var(--navy);font-family:'DM Sans',sans-serif;line-height:1.6}a{color:inherit;text-decoration:none}img{max-width:100%;display:block}button,input,select,textarea{font:inherit}.wrap{width:min(1240px,calc(100% - 48px));margin-inline:auto}.topline{background:var(--navy);color:#d8e8f6;font-size:12px;padding:8px 0}.topline .wrap{display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}.header{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.94);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}.navrow{min-height:86px;display:flex;align-items:center;justify-content:space-between;gap:22px}.brand{display:flex;align-items:center;gap:11px;flex-shrink:0}.brand-mark{display:grid;place-items:center;width:43px;height:43px;border-radius:13px;background:var(--navy);color:white;font:800 22px Manrope,sans-serif}.brand-name{font:800 15px Manrope,sans-serif;letter-spacing:.16em;line-height:1.2}.brand-sub{display:block;color:var(--muted);font:700 9px 'DM Sans',sans-serif;letter-spacing:.25em;text-transform:uppercase;margin-top:4px}.navlinks{display:flex;align-items:center;gap:21px;font-size:12px;font-weight:700}.navlinks a{padding:8px 0;border-bottom:2px solid transparent}.navlinks a:hover,.navlinks a[aria-current=page]{border-color:var(--blue)}.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border:1px solid transparent;border-radius:999px;padding:14px 21px;font-size:13px;font-weight:800;transition:transform .2s,background .2s;cursor:pointer}.btn:hover{transform:translateY(-2px)}.btn-primary{background:var(--navy);color:white}.btn-primary:hover{background:var(--blue)}.btn-light{background:white;border-color:var(--line)}.btn-blue{background:var(--blue);color:white}.nav-actions{display:flex;gap:10px;align-items:center}.menu-btn{display:none;border:1px solid var(--line);background:white;border-radius:12px;width:44px;height:44px;font-size:20px}.hero{padding:66px 0 74px;overflow:hidden;background:linear-gradient(105deg,var(--paper) 0%,var(--paper) 48%,#e4edf6 48%,#e4edf6 100%)}.hero-grid{display:grid;grid-template-columns:.95fr 1.05fr;gap:58px;align-items:center}.eyebrow{display:flex;align-items:center;gap:10px;color:var(--blue);font-size:10px;font-weight:800;letter-spacing:.2em;text-transform:uppercase}.eyebrow:before{content:'';width:27px;height:2px;background:currentColor}.hero h1{font:800 clamp(46px,6.8vw,90px)/.96 Manrope,sans-serif;letter-spacing:-.075em;margin:24px 0}.hero h1 span{color:var(--blue)}.lead{max-width:510px;font-size:17px;line-height:1.8;color:#52677e}.actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:28px}.hero-visual{position:relative;min-width:0}.hero-visual img{width:100%;height:470px;object-fit:contain;border-radius:30px;box-shadow:var(--shadow)}.floating-note{position:absolute;left:-24px;top:30px;background:#fff;border:1px solid #fff;border-radius:15px;padding:15px 18px;box-shadow:var(--shadow);font-size:12px;font-weight:800}.visual-caption{position:absolute;bottom:18px;left:18px;right:18px;background:rgba(16,36,61,.84);color:#fff;border-radius:16px;padding:17px 20px;font:700 19px Manrope,sans-serif;backdrop-filter:blur(8px)}.strip{background:white;border-block:1px solid var(--line)}.strip-grid{display:grid;grid-template-columns:repeat(4,1fr)}.strip-item{padding:24px 18px;border-right:1px solid var(--line)}.strip-item:last-child{border:0}.strip-item b{display:block;font:800 23px Manrope,sans-serif;color:var(--blue)}.strip-item span{display:block;color:var(--muted);font-size:12px;margin-top:3px}.section{padding:82px 0}.section.white{background:#fff}.section.dark{background:var(--navy);color:white}.section-head{display:flex;align-items:end;justify-content:space-between;gap:30px;margin-bottom:32px}.section h2,.section-head h2{font:800 clamp(30px,4.2vw,52px)/1.08 Manrope,sans-serif;letter-spacing:-.055em;margin:12px 0}.section-head p{max-width:420px;color:var(--muted);margin:0}.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}.card{border:1px solid var(--line);background:white;border-radius:23px;overflow:hidden;transition:transform .25s,box-shadow .25s}.card:hover{transform:translateY(-5px);box-shadow:var(--shadow)}.card img{width:100%;height:250px;object-fit:contain;background:var(--pale)}.card-body{padding:22px}.card-body h3{font:800 20px Manrope,sans-serif;margin:0 0 8px}.card-body p{color:var(--muted);font-size:14px;line-height:1.7;margin:0 0 16px}.link{display:inline-flex;align-items:center;gap:8px;color:var(--blue);font-size:13px;font-weight:800}.link:after{content:'↗';font-size:17px}.service-panel{display:grid;grid-template-columns:1fr 1fr;gap:24px}.service-feature{position:relative;min-height:360px;border-radius:25px;overflow:hidden;background:var(--navy)}.service-feature img{position:absolute;width:100%;height:100%;object-fit:cover;opacity:.76}.service-feature:after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(0deg,rgba(16,36,61,.95),transparent 75%)}.service-feature div{position:absolute;z-index:1;left:25px;right:25px;bottom:24px;color:white}.service-feature h3{font:800 27px Manrope,sans-serif;margin:0 0 8px}.service-feature p{max-width:400px;color:#e0e9f2;margin:0 0 15px;font-size:14px}.cta-band{background:#dce8f4;border-radius:28px;padding:36px;display:flex;align-items:center;justify-content:space-between;gap:22px}.cta-band h2{font:800 clamp(27px,3.5vw,42px)/1.12 Manrope,sans-serif;margin:10px 0}.page-hero{padding:58px 0 55px;background:linear-gradient(115deg,#f5f8fc 0%,#f5f8fc 55%,#e4edf6 55%)}.page-hero-grid{display:grid;grid-template-columns:1fr .8fr;align-items:center;gap:52px}.page-hero h1{font:800 clamp(38px,5vw,66px)/1.04 Manrope,sans-serif;letter-spacing:-.06em;margin:17px 0}.page-hero p{font-size:16px;color:#53677d;max-width:620px;line-height:1.85}.page-hero img{height:300px;width:100%;object-fit:contain;border-radius:24px;box-shadow:var(--shadow)}.detail-grid{display:grid;grid-template-columns:.8fr 1.2fr;gap:45px;align-items:start}.check-list{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}.check-item{padding:17px;border:1px solid var(--line);border-radius:15px;background:white;font-size:13px;font-weight:700;display:flex;gap:11px;align-items:flex-start}.check-item:before{content:'✓';display:grid;place-items:center;flex-shrink:0;width:24px;height:24px;background:var(--pale);color:var(--blue);border-radius:50%;font-weight:900}.form-layout{display:grid;grid-template-columns:.75fr 1.25fr;gap:44px}.contact-list{display:grid;gap:18px;margin-top:28px}.contact-item{display:flex;align-items:center;gap:14px}.contact-icon{width:46px;height:46px;border-radius:15px;display:grid;place-items:center;background:var(--pale);font-size:19px}.contact-item small{display:block;color:var(--muted);font-size:11px}.contact-item b{font-size:14px;overflow-wrap:anywhere}.quote-form{background:white;border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:var(--shadow)}.quote-form h2{font:800 26px Manrope,sans-serif;margin:0 0 6px}.quote-form>p{color:var(--muted);font-size:13px;margin:0 0 22px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px}.field{display:grid;gap:7px;font-size:12px;font-weight:800}.field.full{grid-column:1/-1}.field input,.field select,.field textarea{width:100%;border:1px solid #ccd8e5;border-radius:11px;padding:12px 13px;background:#fff;color:var(--navy);outline:none}.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #183f671a}.field textarea{resize:vertical;min-height:110px}.form-status{margin-top:15px;padding:13px 15px;background:var(--pale);border-radius:12px;font-size:13px;color:var(--navy)}.footer{background:var(--navy);color:white;padding:52px 0 20px}.footer-grid{display:grid;grid-template-columns:1.2fr .8fr .8fr 1fr;gap:30px;padding-bottom:35px;border-bottom:1px solid #ffffff24}.footer h3{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#c7d9eb}.footer a,.footer p{font-size:13px;color:#d5dfeb}.footer-links{display:grid;gap:10px}.footer-bottom{display:flex;justify-content:space-between;gap:12px;padding-top:17px;color:#aebdce;font-size:11px}.whatsapp{position:fixed;z-index:30;bottom:20px;right:20px;background:#183f67;color:#fff;border-radius:999px;padding:13px 18px;box-shadow:var(--shadow);font-size:13px;font-weight:800}.mockup-label{display:inline-block;border-radius:999px;background:var(--pale);padding:7px 12px;color:var(--blue);font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}.catalogue-callout{display:flex;align-items:center;justify-content:space-between;gap:20px;background:white;border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:25px}.catalogue-callout strong{font:800 17px Manrope,sans-serif}.catalogue-callout p{margin:5px 0 0;font-size:13px;color:var(--muted)}.mobile-nav{display:none}
 @media(max-width:1100px){.navlinks{gap:12px;font-size:11px}.nav-actions .catalogue-btn{display:none}.nav-actions .quote-btn{padding:12px 15px}.hero-grid{gap:30px}.hero-visual img{height:420px}}
 @media(max-width:900px){.wrap{width:min(100% - 36px,700px)}.navrow{min-height:74px}.navlinks{display:none}.nav-actions .quote-btn{display:none}.menu-btn{display:block}.mobile-nav.open{display:grid;padding:0 18px 16px;gap:4px}.mobile-nav a{padding:11px 12px;border-radius:10px;font-size:13px;font-weight:700}.mobile-nav a:hover{background:var(--pale)}.hero{padding:42px 0 54px;background:linear-gradient(160deg,var(--paper) 0%,var(--paper) 60%,#e4edf6 60%)}.hero-grid,.page-hero-grid,.detail-grid,.form-layout{grid-template-columns:1fr}.hero-grid{gap:34px}.hero-visual img{height:360px}.floating-note{left:12px;top:12px}.strip-grid{grid-template-columns:repeat(2,1fr)}.strip-item:nth-child(2){border-right:0}.strip-item:nth-child(-n+2){border-bottom:1px solid var(--line)}.section{padding:60px 0}.section-head{align-items:start;flex-direction:column}.cards{grid-template-columns:repeat(2,1fr)}.service-panel{grid-template-columns:1fr 1fr}.page-hero{padding:42px 0}.page-hero-grid{gap:24px}.page-hero img{height:280px}.footer-grid{grid-template-columns:repeat(2,1fr)}}
@@ -242,6 +242,241 @@ body.visual-editor-mode .visual-editor-selected{outline:3px solid #b8894f!import
 .editable-section-copy p{color:var(--muted);line-height:1.85;white-space:pre-line;margin:0 0 20px}
 @media(max-width:700px){.editable-section-card{grid-template-columns:1fr;gap:22px}}
 @media(prefers-reduced-motion:reduce){.hero-carousel img{transition:none}}
+
+/* Premium dimensional layer shared by every public page. */
+body{background-image:radial-gradient(ellipse at 4% 12%,rgba(219,230,216,.42),transparent 28%),radial-gradient(ellipse at 96% 48%,rgba(232,222,202,.26),transparent 26%);background-attachment:fixed}
+.header{box-shadow:0 14px 38px rgba(13,38,31,.22)}
+.brand-mark{transform:perspective(260px) rotateY(-10deg);box-shadow:inset 0 1px 0 #ffffffb0,0 9px 18px #071f1838}
+.navlinks a{transition:color .2s,border-color .2s,transform .2s}
+.navlinks a:hover{transform:translateY(-2px)}
+.hero-visual,.page-hero-grid>img{transform-style:preserve-3d}
+.hero-visual img,.page-hero-grid>img{object-fit:cover;border:1px solid #ffffffc9;backface-visibility:hidden}
+.hero-visual img{transform:perspective(1300px) rotateY(-4deg) rotateX(1.5deg) translateZ(10px)}
+.hero-visual:hover img{transform:perspective(1300px) rotateY(-1deg) rotateX(0) translateY(-6px) translateZ(20px)}
+.page-hero-grid>img{transform:perspective(1100px) rotateY(-5deg) rotateX(1.5deg) translateZ(10px);box-shadow:0 34px 70px rgba(21,49,41,.23),0 9px 22px rgba(21,49,41,.12)}
+.page-hero-grid>img:hover{transform:perspective(1100px) rotateY(-1deg) translateY(-5px) translateZ(16px)}
+.card,.service-feature,.quote-form,.upload-card,.qr-card,.cta-band{transform-style:preserve-3d;backface-visibility:hidden}
+.card{perspective:1000px}
+.card:hover{transform:perspective(1000px) translateY(-8px) rotateX(2deg) rotateY(-.5deg);box-shadow:0 28px 52px rgba(29,55,46,.17),0 5px 12px rgba(29,55,46,.07)}
+.card img{object-fit:cover}
+.service-feature:hover{transform:perspective(1000px) translateY(-8px) rotateX(1.5deg) rotateY(-.5deg)}
+.strip-item{transition:background .25s,transform .25s,box-shadow .25s}
+.strip-item:hover{z-index:1;transform:perspective(600px) translateY(-4px) rotateX(3deg);background:#fffefa;box-shadow:0 15px 28px rgba(29,55,46,.1)}
+.check-item{transition:transform .22s,box-shadow .22s,border-color .22s}
+.check-item:hover{transform:perspective(650px) translateY(-3px) rotateX(2deg);border-color:#c9d7c9;box-shadow:0 12px 22px rgba(29,55,46,.08)}
+.quote-form,.upload-card,.qr-card{box-shadow:0 28px 65px rgba(26,55,45,.12),0 4px 12px rgba(26,55,45,.04);transition:transform .35s,box-shadow .35s,border-color .35s}
+.quote-form:hover,.upload-card:hover,.qr-card:hover{transform:perspective(1200px) translateY(-4px) rotateX(.6deg);border-color:#ced9cc;box-shadow:0 35px 76px rgba(26,55,45,.16),0 8px 18px rgba(26,55,45,.06)}
+.field input,.field select,.field textarea{box-shadow:inset 0 1px 2px rgba(24,60,53,.035);transition:border-color .18s,box-shadow .18s,background .18s}
+.field input:hover,.field select:hover,.field textarea:hover{border-color:#aebfae;background:#fff}
+.qr-image{transform:perspective(700px) rotateX(2deg);box-shadow:0 18px 36px rgba(24,60,53,.12);background:#fff}
+.cta-band{transition:transform .3s,box-shadow .3s}
+.cta-band:hover{transform:perspective(900px) translateY(-4px) rotateX(1deg);box-shadow:0 25px 55px rgba(34,66,54,.14)}
+.btn{transition:transform .2s,background .2s,box-shadow .2s}
+.btn:active{transform:translateY(1px) scale(.985)}
+.footer{border-top:1px solid #ffffff22}
+@media(max-width:900px){.hero-visual img,.page-hero-grid>img,.hero-visual:hover img,.page-hero-grid>img:hover{transform:none}}
+@media(max-width:600px){body{background-attachment:scroll}.card:hover,.service-feature:hover,.quote-form:hover,.upload-card:hover,.qr-card:hover,.cta-band:hover,.strip-item:hover,.check-item:hover{transform:translateY(-2px)}.hero-visual img,.page-hero-grid>img{object-fit:cover}.hero-visual img{height:290px}}
+@media(prefers-reduced-motion:reduce){.hero-visual img,.page-hero-grid>img,.card,.service-feature,.quote-form,.upload-card,.qr-card,.cta-band,.strip-item,.check-item{transition:none!important}.card:hover,.service-feature:hover,.quote-form:hover,.upload-card:hover,.qr-card:hover,.cta-band:hover,.strip-item:hover,.check-item:hover{transform:none}}
+
+/* Make the dimensional art direction visible before the visitor interacts. */
+.hero-visual img{transform:perspective(1050px) rotateY(-8deg) rotateX(3deg) translateZ(18px);box-shadow:22px 30px 0 -18px rgba(184,137,79,.72),0 48px 90px rgba(13,38,31,.28),0 14px 28px rgba(13,38,31,.16)}
+.hero-visual:hover img{transform:perspective(1050px) rotateY(-2deg) rotateX(1deg) translateY(-10px) translateZ(30px);box-shadow:16px 24px 0 -18px rgba(184,137,79,.82),0 58px 105px rgba(13,38,31,.34),0 18px 32px rgba(13,38,31,.19)}
+.page-hero-grid>img{transform:perspective(950px) rotateY(-9deg) rotateX(3deg) translateZ(16px);box-shadow:24px 28px 0 -18px rgba(184,137,79,.72),0 42px 82px rgba(13,38,31,.27),0 12px 24px rgba(13,38,31,.15)}
+.card{box-shadow:0 18px 0 -12px rgba(184,137,79,.38),0 20px 40px rgba(29,55,46,.13)}
+.card:nth-child(3n+1){transform:perspective(1000px) rotateY(-2deg) rotateX(1deg) translateZ(7px)}
+.card:nth-child(3n+2){transform:perspective(1000px) translateY(-4px) translateZ(18px)}
+.card:nth-child(3n){transform:perspective(1000px) rotateY(2deg) rotateX(1deg) translateZ(7px)}
+.card:hover{transform:perspective(1000px) translateY(-13px) rotateX(4deg) rotateY(-1deg) translateZ(24px);box-shadow:0 26px 0 -17px rgba(184,137,79,.68),0 38px 68px rgba(29,55,46,.23)}
+.service-feature{transform:perspective(1000px) rotateY(-2deg) translateZ(8px);box-shadow:18px 24px 0 -18px rgba(184,137,79,.7),0 30px 55px rgba(3,19,15,.27)}
+.service-feature:nth-child(even){transform:perspective(1000px) rotateY(2deg) translateZ(8px)}
+.upload-grid>.upload-card:first-child{transform:perspective(1250px) rotateY(-3deg) rotateX(1deg) translateZ(12px)}
+.upload-grid>.upload-card:nth-child(2){transform:perspective(1250px) rotateY(3deg) rotateX(1deg) translateZ(8px)}
+.qr-card{transform:perspective(1100px) rotateX(2deg) translateZ(12px)}
+.quote-form,.upload-card,.qr-card{box-shadow:16px 22px 0 -16px rgba(184,137,79,.62),0 32px 68px rgba(26,55,45,.18)}
+@media(max-width:900px){.hero-visual img,.page-hero-grid>img{transform:perspective(1200px) rotateY(-4deg) rotateX(2deg) translateZ(8px)}}
+@media(max-width:600px){.hero-visual img,.page-hero-grid>img,.card,.card:nth-child(3n+1),.card:nth-child(3n+2),.card:nth-child(3n),.service-feature,.service-feature:nth-child(even),.upload-grid>.upload-card:first-child,.upload-grid>.upload-card:nth-child(2),.qr-card{transform:none}.card:hover,.service-feature:hover,.quote-form:hover,.upload-card:hover,.qr-card:hover,.cta-band:hover{transform:translateY(-4px)}}
+@media(prefers-reduced-motion:reduce){.hero-visual img,.page-hero-grid>img,.card,.service-feature,.upload-card,.qr-card{transform:none!important}.card:hover,.service-feature:hover,.quote-form:hover,.upload-card:hover,.qr-card:hover{transform:none!important}}
+
+/* ESICOM editorial redesign: typography and composition, never fake depth. */
+*,*::before,*::after{box-shadow:none!important;text-shadow:none!important;filter:none!important}
+*,*::before,*::after{transform:none!important}
+:root{--navy:#173a31;--blue:#355b49;--pale:#e6e9df;--paper:#f5f3ed;--muted:#68716a;--line:#d4d4ca;--white:#fffefb;--gold:#c59b62;--shadow:none}
+html{scroll-behavior:smooth}
+body{background:#f5f3ed!important;background-image:none!important;color:#20352e;font-family:'DM Sans',sans-serif;line-height:1.65}
+.wrap{width:min(1320px,calc(100% - 64px))}
+.topline{background:#173a31;color:#e7e9dd;letter-spacing:.11em;font-size:10px}
+.topline a{color:#fffefb;text-decoration:underline;text-decoration-color:#c59b62;text-underline-offset:4px}
+.header{background:#f5f3ed!important;border-bottom:1px solid #c9cbc0;backdrop-filter:none;}
+.navrow{min-height:82px}
+.brand-mark{width:38px;height:38px;border-radius:0;background:#173a31!important;color:#f5f3ed!important;font:700 19px 'Instrument Serif',Georgia,serif!important}
+.brand-name{color:#173a31!important;font-size:14px;letter-spacing:.2em}
+.brand-sub{color:#68716a!important;letter-spacing:.22em}
+.navlinks{gap:clamp(12px,1.8vw,26px);font-size:11px;letter-spacing:.025em}
+.navlinks a{color:#35483f!important;border-bottom:1px solid transparent;padding:10px 0}
+.navlinks a:hover,.navlinks a[aria-current=page]{color:#173a31!important;border-color:#c59b62!important}
+.btn,.header .btn{border-radius:2px!important;box-shadow:none!important;letter-spacing:.06em;text-transform:uppercase;font-size:10px;padding:14px 18px}
+.btn-primary,.header .btn-primary{background:#173a31!important;color:#f5f3ed!important;border:1px solid #173a31!important}
+.btn-primary:hover,.header .btn-primary:hover{background:#c59b62!important;border-color:#c59b62!important;color:#173a31!important}
+.btn-light,.header .btn-light{background:transparent!important;color:#173a31!important;border:1px solid #aeb4a8!important}
+.menu-btn{border-radius:2px!important;color:#173a31!important;border-color:#aeb4a8!important}
+.mobile-nav{background:#f5f3ed!important;border-top:1px solid #d4d4ca}
+.mobile-nav a{color:#173a31!important}
+.hero{padding:clamp(68px,9vw,126px) 0 clamp(62px,8vw,105px);background:#f5f3ed!important;position:relative;isolation:isolate}
+.hero:before{content:'NAIROBI  /  EST. WITH PURPOSE';display:block;position:absolute;left:50%;top:24px;width:min(1320px,calc(100% - 64px));transform:translateX(-50%)!important;border-bottom:1px solid #d4d4ca;padding-bottom:14px;color:#68716a;font:600 9px 'DM Sans',sans-serif;letter-spacing:.2em}
+.hero:after{content:'ESICOM';position:absolute;z-index:-1;right:2vw;top:7%;color:#eeece4;font:400 clamp(90px,18vw,260px)/.8 'Instrument Serif',Georgia,serif;letter-spacing:-.055em;pointer-events:none}
+.hero-grid{grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr);gap:clamp(40px,8vw,120px);align-items:center}
+.hero h1,.page-hero h1,.section h2,.section-head h2,.detail-grid h2,.quote-form h2,.upload-card h1,.qr-card h1{font-family:'Instrument Serif',Georgia,serif!important;font-weight:400!important;letter-spacing:-.035em!important;color:#173a31!important}
+.hero h1{font-size:clamp(76px,10.5vw,148px)!important;line-height:.82!important;margin:30px 0 26px;max-width:650px}
+.hero h1 span{color:#b7854e!important;font-style:italic}
+.eyebrow{color:#647468!important;font-size:9px;letter-spacing:.22em;font-weight:700}
+.eyebrow:before{background:#c59b62!important;width:34px}
+.lead{max-width:430px;color:#596a60;font-size:16px;line-height:1.85}
+.hero .actions{margin-top:34px}
+.hero-visual{padding:0 16px 16px 0;position:relative}
+.hero-visual:before{display:block!important;content:'';position:absolute;z-index:-1;inset:17px -1px -1px 17px;border:1px solid #c59b62;border-radius:0;transform:none!important}
+.hero-visual img{height:clamp(390px,45vw,610px);object-fit:cover;border:0!important;border-radius:0!important;transform:none!important}
+.floating-note{left:-19px;top:22px;border:0!important;border-radius:0!important;background:#173a31!important;color:#f5f3ed!important;padding:12px 15px;font-size:9px;letter-spacing:.16em;text-transform:uppercase}
+.visual-caption{bottom:16px;left:16px;right:32px;border-radius:0!important;background:#173a31!important;color:#f5f3ed;padding:18px 20px;font:400 22px 'Instrument Serif',Georgia,serif!important;backdrop-filter:none}
+.strip{background:#e9e9df!important;border-block:1px solid #d0d1c6}
+.strip-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.strip-item{padding:21px 20px!important;border-right:1px solid #c9cbc0!important}
+.strip-item b{color:#b7854e!important;font:400 29px 'Instrument Serif',Georgia,serif!important}
+.strip-item span{color:#45574c!important;font-size:10px;text-transform:uppercase;letter-spacing:.12em}
+.section{padding:clamp(68px,8vw,112px) 0}
+.section.white{background:#fffefb!important}
+.section.dark{background:#173a31!important;color:#f5f3ed}
+.section.dark h2,.section.dark .section-head h2{color:#f5f3ed!important}
+.section.dark .eyebrow{color:#d7c69f!important}
+.section-head{border-bottom:1px solid #d4d4ca;padding-bottom:22px;margin-bottom:32px;align-items:end}
+.section.dark .section-head{border-color:#ffffff38}
+.section-head h2,.section h2{font-size:clamp(42px,6vw,78px)!important;line-height:.96!important;margin:12px 0!important}
+.section-head p{font-size:13px;line-height:1.8;color:#68716a!important;max-width:390px}
+.section.dark .section-head p{color:#d3d8ce!important}
+.cards{gap:22px;align-items:start}
+.card{background:transparent!important;border:0!important;border-bottom:1px solid #c9cbc0!important;border-radius:0!important;overflow:hidden}
+.card:hover{border-color:#b7854e!important}
+.card img{height:clamp(220px,24vw,330px)!important;object-fit:cover!important;background:#e9e9df!important;border-radius:0!important}
+.card-body{padding:20px 2px 25px!important}
+.card-body h3{font:400 29px/1.05 'Instrument Serif',Georgia,serif!important;color:#173a31!important;margin-bottom:10px!important}
+.card-body p{font-size:12px!important;line-height:1.8!important;color:#68716a!important}
+.link{color:#355b49!important;text-transform:uppercase;font-size:9px;letter-spacing:.12em}
+.link:after{color:#b7854e!important}
+.service-panel{gap:14px}
+.service-feature,.service-panel.premium-services .service-feature{min-height:clamp(300px,32vw,440px)!important;border-radius:0!important;background:#173a31!important}
+.service-feature img{opacity:.62!important;object-fit:cover;transform:none!important;transition:opacity .25s}
+.service-feature:after{background:linear-gradient(0deg,rgba(12,40,32,.88),rgba(12,40,32,.02) 78%)!important}
+.service-feature:hover img{opacity:.8!important}
+.service-feature div{left:24px;right:24px;bottom:24px}
+.service-feature h3{font:400 36px/1 'Instrument Serif',Georgia,serif!important}
+.service-feature p{font-size:12px;color:#e2e5dc!important}
+.cta-band{border-radius:0!important;background:#e8e8de!important;border:1px solid #d1d2c7!important;padding:clamp(26px,4vw,44px)!important}
+.cta-band h2{font:400 clamp(38px,5vw,64px)/.95 'Instrument Serif',Georgia,serif!important;color:#173a31!important}
+.cta-band:after{border-color:#c59b62!important;box-shadow:none!important}
+.page-hero{padding:clamp(58px,8vw,100px) 0;background:#ecece3!important}
+.page-hero-grid{grid-template-columns:minmax(0,1fr) minmax(300px,.78fr);gap:clamp(36px,7vw,100px)}
+.page-hero h1{font-size:clamp(58px,8vw,104px)!important;line-height:.9!important;margin:18px 0!important;max-width:760px}
+.page-hero p{font-size:15px!important;color:#5c6b61!important;max-width:540px}
+.page-hero img{height:clamp(280px,34vw,430px)!important;object-fit:cover!important;border-radius:0!important;border:0!important;transform:none!important}
+.detail-grid{gap:clamp(35px,7vw,100px)}
+.detail-grid h2{font-size:clamp(42px,5.5vw,72px)!important;line-height:.95!important}
+.check-list{gap:0 20px}
+.check-item{padding:18px 4px!important;border:0!important;border-bottom:1px solid #d4d4ca!important;border-radius:0!important;background:transparent!important;font-size:12px!important;color:#45574c}
+.check-item:before{background:#173a31!important;color:#f5f3ed!important;border-radius:0!important;font-size:11px}
+.form-layout{gap:clamp(30px,6vw,84px)}
+.contact-list{border-top:1px solid #d4d4ca;padding-top:18px}
+.contact-icon{border-radius:0!important;background:#e7e8de!important;color:#173a31}
+.quote-form,.upload-card,.qr-card{background:#fffefb!important;border:1px solid #d4d4ca!important;border-radius:0!important;padding:clamp(22px,4vw,44px)!important}
+.quote-form h2,.upload-card h1,.qr-card h1{font-size:clamp(39px,5vw,62px)!important;line-height:.98!important}
+.field{font-size:10px;text-transform:uppercase;letter-spacing:.045em;color:#405348}
+.field input,.field select,.field textarea{border:0!important;border-bottom:1px solid #b9c1b5!important;border-radius:0!important;background:#f5f3ed!important;padding:13px!important;color:#173a31!important}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:#173a31!important;outline:2px solid #c59b62!important;outline-offset:2px;box-shadow:none!important}
+.form-status,.upload-result{background:#e7e8de!important;border-radius:0!important;color:#173a31!important}
+.upload-shell,.qr-shell{padding:clamp(45px,7vw,90px) 0!important;background:#f5f3ed!important}
+.upload-grid{gap:20px}
+.upload-card>p,.qr-card>p{color:#68716a!important}
+.upload-note{color:#68716a!important}
+.qr-image{border:1px solid #c9cbc0!important;border-radius:0!important;padding:15px!important;box-shadow:none!important}
+.qr-actions{gap:9px}
+.catalogue-callout{background:transparent!important;border:1px solid #c9cbc0!important;border-radius:0!important;padding:22px!important}
+.footer{background:#173a31!important;border-top:0!important;padding:60px 0 24px}
+.footer-grid{border-color:#ffffff38;grid-template-columns:1.2fr .8fr .9fr 1fr}
+.footer h3{font-size:9px;letter-spacing:.2em;color:#d7c69f!important}
+.footer a:hover{color:#e4c18f!important}
+.footer .brand-mark{background:#f5f3ed!important;color:#173a31!important}
+.whatsapp{background:#173a31!important;border:1px solid #c59b62!important;border-radius:2px!important;padding:12px 16px!important;font-size:9px!important;letter-spacing:.1em;text-transform:uppercase}
+.photo-credit{padding:0 2px}
+@media(max-width:900px){.wrap{width:min(100% - 40px,760px)}.hero:after{top:10%;right:-8vw}.hero-grid,.page-hero-grid{grid-template-columns:1fr}.hero-grid{gap:42px}.hero-visual{max-width:720px}.hero-visual img{height:clamp(340px,65vw,480px)}.page-hero-grid>img{max-width:640px}.section-head{align-items:start;flex-direction:column}.service-panel.premium-services{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.wrap{width:calc(100% - 32px)}.topline .wrap{font-size:9px}.hero{padding:72px 0 58px}.hero:before{width:calc(100% - 32px);font-size:8px}.hero:after{font-size:100px;top:15%;right:-3vw}.hero h1{font-size:clamp(64px,18vw,100px)!important}.hero-visual{padding:0 9px 9px 0}.hero-visual:before{inset:10px -1px -1px 10px}.hero-visual img{height:clamp(260px,76vw,360px)}.floating-note{left:-5px;top:12px}.visual-caption{left:10px;right:18px;bottom:10px;padding:13px}.strip-item{padding:16px 10px!important}.strip-item span{font-size:8px}.section{padding:58px 0}.cards,.service-panel,.service-panel.premium-services,.check-list,.form-grid{grid-template-columns:1fr!important}.card img{height:240px!important}.service-feature,.service-panel.premium-services .service-feature{min-height:300px!important}.page-hero{padding:48px 0}.page-hero h1{font-size:clamp(54px,15vw,78px)!important}.page-hero img{height:250px!important}.quote-form,.upload-card,.qr-card{padding:22px!important}.footer-grid{grid-template-columns:1fr;gap:26px}.catalogue-callout{align-items:flex-start;flex-direction:column}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{transition:none!important}}
+
+/* Homepage campaign hero: the photograph is the atmosphere, not a side card. */
+.hero{min-height:min(820px,88svh);padding:34px 0 0!important;overflow:hidden;background:#173a31!important;color:#fffefb}
+.hero:before{z-index:4;top:20px;color:#ffffffbf!important;border-color:#ffffff42!important}
+.hero:after{display:none!important}
+.hero-grid{display:block!important;position:relative;min-height:min(820px,88svh);width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+.hero-grid>div:first-child{position:relative;z-index:3;width:min(1320px,calc(100% - 64px));min-height:min(820px,88svh);margin:0 auto;padding:clamp(130px,17vh,210px) 0 180px;pointer-events:none}
+.hero-grid>div:first-child>*{pointer-events:auto}
+.hero-grid>div:first-child .eyebrow{color:#e4d7bc!important}
+.hero-grid>div:first-child .eyebrow:before{background:#c59b62!important}
+.hero .hero-grid h1{max-width:850px;margin:26px 0 22px!important;color:#fffefb!important;font-size:clamp(78px,10vw,142px)!important;line-height:.82!important;letter-spacing:-.045em!important}
+.hero .hero-grid h1 span{color:#e1bd83!important}
+.hero .lead{max-width:470px;color:#f1f0e9!important;font-size:clamp(14px,1.35vw,18px);line-height:1.8}
+.hero .actions{margin-top:32px}
+.hero .btn-primary{background:#f5f3ed!important;border-color:#f5f3ed!important;color:#173a31!important}
+.hero .btn-primary:hover{background:#e1bd83!important;border-color:#e1bd83!important}
+.hero .btn-light{background:transparent!important;border-color:#ffffffa6!important;color:#fffefb!important}
+.hero .mockup-label{padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;color:#eee9dc!important;font-size:9px;letter-spacing:.17em}
+.hero .hero-visual{position:absolute!important;inset:0!important;z-index:1;width:100%!important;max-width:none!important;margin:0!important;padding:0!important;overflow:hidden;background:#173a31}
+.hero .hero-visual:before{display:none!important}
+.hero .hero-visual:after{content:'';position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(13,35,29,.88) 0%,rgba(13,35,29,.68) 36%,rgba(13,35,29,.2) 72%,rgba(13,35,29,.08) 100%),linear-gradient(0deg,rgba(13,35,29,.4),transparent 42%)}
+.hero .hero-visual img,.hero .hero-carousel img{position:absolute;inset:0;width:100%!important;height:100%!important;object-fit:cover!important;object-position:center 48%;border:0!important;border-radius:0!important;opacity:1;transform:none!important;transition:opacity .8s ease!important}
+.hero .hero-carousel img.is-changing{opacity:.16!important}
+.hero .hero-slide-link{position:absolute;inset:0;z-index:0;display:block}
+.hero .hero-slide-link:after{display:none!important}
+.hero .hero-carousel .floating-note{z-index:2;top:92px;right:max(32px,calc((100vw - 1320px)/2));left:auto;border:1px solid #ffffff66!important;border-radius:0!important;background:#173a318c!important;color:#fffefb!important;padding:12px 15px;font-size:9px;letter-spacing:.17em;backdrop-filter:blur(8px)}
+.hero .hero-carousel .visual-caption{z-index:2;left:auto;right:max(32px,calc((100vw - 1320px)/2));bottom:34px;max-width:400px;background:transparent!important;border:0!important;color:#fffefb;padding:0;text-align:right}
+.hero .hero-caption-copy small{color:#e1bd83!important;font-size:9px;letter-spacing:.2em}
+.hero .hero-caption-copy strong{font:400 clamp(22px,3vw,38px)/1.02 'Instrument Serif',Georgia,serif!important;color:#fffefb}
+.hero .hero-slide-more{color:#fffefb;font-size:9px;text-transform:uppercase;letter-spacing:.14em}
+.hero .hero-carousel-controls{z-index:3;top:auto;right:auto;bottom:35px;left:max(32px,calc((100vw - 1320px)/2));gap:8px;padding:0;border:0;border-radius:0;background:transparent;backdrop-filter:none}
+.hero .hero-carousel-controls button{width:42px;height:42px;border:1px solid #ffffff8a;border-radius:50%;background:transparent;color:#fffefb;font-size:14px}
+.hero .hero-carousel-controls button:hover{background:#ffffff22}
+.hero .hero-carousel-controls [data-hero-dots]{gap:7px}
+.hero .hero-carousel-controls [data-hero-dots] button{width:7px;height:7px;min-width:7px;border:0;background:#ffffff80}
+.hero .hero-carousel-controls [data-hero-dots] button[aria-current=true]{width:24px;border-radius:8px;background:#e1bd83}
+.hero .strip-item,.hero .card{pointer-events:auto}
+@media(max-width:900px){.hero,.hero-grid,.hero-grid>div:first-child{min-height:780px}.hero-grid>div:first-child{width:calc(100% - 40px);padding:150px 0 190px}.hero .hero-visual img{height:100%!important}.hero .hero-carousel .floating-note{right:20px;top:94px}.hero .hero-carousel .visual-caption{right:20px;bottom:28px}.hero .hero-carousel-controls{left:20px;bottom:30px}.hero .hero-grid h1{font-size:clamp(70px,12vw,110px)!important}}
+@media(max-width:600px){.hero,.hero-grid,.hero-grid>div:first-child{min-height:790px}.hero-grid>div:first-child{width:calc(100% - 32px);padding:138px 0 190px}.hero .hero-grid h1{font-size:clamp(64px,17vw,92px)!important}.hero .lead{max-width:340px;font-size:14px}.hero .hero-carousel .floating-note{top:90px;right:16px;padding:9px 11px;font-size:8px}.hero .hero-carousel .visual-caption{right:16px;bottom:28px;max-width:230px}.hero .hero-caption-copy strong{font-size:25px}.hero .hero-carousel-controls{left:16px;bottom:30px}.hero .hero-carousel-controls button{width:36px;height:36px}.hero .hero-visual:after{background:linear-gradient(90deg,rgba(13,35,29,.84),rgba(13,35,29,.36)),linear-gradient(0deg,rgba(13,35,29,.6),transparent 55%)}}
+@media(prefers-reduced-motion:reduce){.hero .hero-carousel img{transition:none!important}}
+
+/* Softer, tactile surfaces across every page—rounded and quiet, never shadow-heavy. */
+:root{--soft-line:#e0e4dc;--soft-line-strong:#d3dbd1}
+.card{background:#fffefb!important;border:1px solid var(--soft-line)!important;border-radius:16px!important;box-shadow:none!important}
+.card img{border-radius:15px 15px 0 0!important}
+.card-body{padding:22px!important}
+.card:hover{border-color:var(--soft-line-strong)!important}
+.service-feature,.service-panel.premium-services .service-feature{border-radius:18px!important;overflow:hidden;box-shadow:none!important}
+.cta-band{border-radius:18px!important;border-color:var(--soft-line-strong)!important;box-shadow:none!important}
+.cta-band:after{border-radius:14px!important}
+.page-hero-grid>img{border-radius:16px!important}
+.quote-form,.upload-card,.qr-card{border-radius:18px!important;border-color:var(--soft-line)!important;box-shadow:none!important}
+.field input,.field select,.field textarea{border:1px solid #d9dfd6!important;border-radius:9px!important;background:#fbfbf7!important}
+.form-status,.upload-result{border-radius:10px!important}
+.check-item{border:1px solid var(--soft-line)!important;border-radius:10px!important;background:#fbfbf7!important}
+.check-item:before{border-radius:7px!important}
+.contact-icon{border:1px solid var(--soft-line)!important;border-radius:10px!important}
+.catalogue-callout{border:1px solid var(--soft-line)!important;border-radius:14px!important;background:#fbfbf7!important}
+.qr-image{border-color:var(--soft-line-strong)!important;border-radius:14px!important}
+.btn,.header .btn,.whatsapp{border-radius:999px!important;box-shadow:none!important}
+.hero .hero-carousel .floating-note{border-radius:999px!important}
+.hero .hero-carousel-controls button{border-radius:50%!important}
+.strip{border-color:var(--soft-line)!important}
+.strip-item{border-color:var(--soft-line)!important}
+.section-head{border-color:var(--soft-line-strong)!important}
+.section.dark .section-head{border-color:#ffffff2e!important}
+.contact-list{border-color:var(--soft-line-strong)!important}
+.qr-actions button{border-radius:999px!important}
+@media(max-width:600px){.card-body{padding:19px!important}}
 '''
 
 JS = r'''(()=>{
@@ -393,8 +628,8 @@ if(heroCarousel){
   const initialImage=heroCarousel.querySelector('[data-copy-image]');
   initialImage.removeAttribute('data-copy-image');
   initialImage.setAttribute('data-hero-slide-image','');
-  initialImage.src='/images/photography/stock-office-box.webp';
-  initialImage.alt='Boxed workplace supplies ready for an office';
+  initialImage.src='/images/hero/hero-office-supplies.webp';
+  initialImage.alt='Esicom Suppliers branded notebooks and business cards on a forest-green desk';
   const note=document.createElement('div');
   note.className='floating-note';
   note.textContent='SUPPLY · PRINT · BRAND';
@@ -441,10 +676,10 @@ if(heroCarousel){
   heroCarousel.replaceChildren(note,slideLink,caption,controls);
 }
 const imageSlides=[
-  {image:'/images/photography/stock-office-box.webp',alt:'Boxed workplace supplies ready for an office',category:'Supply · Office essentials',title:'Everyday supplies, brought together.',href:'/office-supplies/'},
-  {image:'/images/photography/computer.webp',alt:'Computer and printer workspace',category:'Supply · Computer essentials',title:'The essentials behind a productive team.',href:'/computer-consumables/'},
-  {image:'/images/photography/printing.webp',alt:'Printed materials prepared for a business brief',category:'Print · Business printing',title:'Make your next print run stand out.',href:'/bulk-printing/'},
-  {image:'/images/photography/apparel.webp',alt:'Apparel for a corporate branding enquiry',category:'Brand · Corporate identity',title:'Put your organisation’s identity to work.',href:'/branding/'}
+  {image:'/images/hero/hero-office-supplies.webp',alt:'Esicom Suppliers branded notebooks and business cards on a forest-green desk',category:'Supply · Office essentials',title:'Give the everyday a signature.',href:'/office-supplies/'},
+  {image:'/images/hero/hero-computer.webp',alt:'Computer and printer essentials in a contemporary office',category:'Supply · Computer essentials',title:'The essentials behind a productive team.',href:'/computer-consumables/'},
+  {image:'/images/hero/hero-printing.webp',alt:'Fresh printed materials prepared in a professional print studio',category:'Print · Business printing',title:'Make your next print run stand out.',href:'/bulk-printing/'},
+  {image:'/images/hero/hero-branding.webp',alt:'Forest-green Esicom Suppliers polo beside a plain ivory polo',category:'Brand · Corporate apparel',title:'Wear your identity with pride.',href:'/branding/'}
 ];
 let carouselSlides=imageSlides;
 let carouselActive=0;
@@ -504,8 +739,8 @@ const startHeroCarousel=featuredProducts=>{
     href:'/'+encodeURIComponent(product.page)+'/'
   }));
   carouselSlides=homePageImage
-    ?[{image:imageUrl(homePageImage),alt:'Featured Esicom Suppliers photo',category:'ESICOM · SUPPLY. PRINT. BRAND.',title:'The details that keep your workday moving.',href:'/office-supplies/'},...(productSlides.length?productSlides:imageSlides)]
-    :productSlides.length?productSlides:imageSlides;
+    ?[{image:imageUrl(homePageImage),alt:'Featured Esicom Suppliers photo',category:'ESICOM · SUPPLY. PRINT. BRAND.',title:'The details that keep your workday moving.',href:'/office-supplies/'},...imageSlides,...productSlides]
+    :[...imageSlides,...productSlides];
   dots.replaceChildren(...carouselSlides.map((slide,index)=>{
     const button=document.createElement('button');
     button.type='button';
@@ -819,6 +1054,7 @@ document.querySelector('[data-print-qr]')?.addEventListener('click',()=>window.p
 })();'''
 
 NAV = [('/office-supplies/','Office supplies'),('/computer-consumables/','Computer consumables'),('/bulk-printing/','Bulk printing'),('/branding/','Branding'),('/about/','About'),('/contact/','Contact'),('/send-file/','Send a file')]
+SITE_ORIGIN = ''
 
 def esc(s):
     return str(s).replace('&','&amp;').replace('<','&lt;').replace('>','&gt;').replace('"','&quot;')
@@ -828,7 +1064,7 @@ def header(path):
     return f'''<a class="skip-link" href="#main-content">Skip to main content</a><div class="topline"><div class="wrap"><span>SUPPLY. PRINT. BRAND.</span><span>Chaka Place Building · Nairobi, Kenya &nbsp; | &nbsp; <a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a></span></div></div><header class="header"><div class="wrap navrow"><a class="brand" href="/" aria-label="Esicom Suppliers home"><span class="brand-mark">E.</span><span><span class="brand-name">ESICOM</span><span class="brand-sub">Suppliers</span></span></a><nav class="navlinks" aria-label="Main navigation">{links}</nav><div class="nav-actions"><a class="btn btn-light catalogue-btn" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Catalogue ↓</a><a class="btn btn-primary quote-btn" href="/contact/">Request a quote ↗</a><button class="menu-btn" data-menu-button aria-controls="mobile-navigation" aria-expanded="false" aria-label="Open navigation">☰</button></div></div><nav class="mobile-nav" id="mobile-navigation" data-mobile-nav aria-label="Mobile navigation">{links}<a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Download product catalogue (PDF)</a><a href="/contact/">Request a quote ↗</a></nav></header>'''
 
 def footer():
-    return '''<footer class="footer"><div class="wrap"><div class="footer-grid"><div><a class="brand" href="/" style="color:white"><span class="brand-mark" style="background:#fff;color:#10243d">E.</span><span><span class="brand-name">ESICOM</span><span class="brand-sub" style="color:#b9c8d8">Suppliers</span></span></a><p style="max-width:290px;line-height:1.8">Office essentials, computer consumables, bulk printing and corporate branding.</p><p style="font:800 18px Manrope,sans-serif;color:white">SUPPLY. PRINT. BRAND.</p></div><div><h3>Products</h3><div class="footer-links"><a href="/office-supplies/">Office supplies</a><a href="/paper-filing/">Paper & filing</a><a href="/computer-consumables/">Computer consumables</a><a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Product catalogue (PDF)</a></div></div><div><h3>Services</h3><div class="footer-links"><a href="/bulk-printing/">Bulk printing</a><a href="/branding/">Corporate branding</a><a href="/business-cards/">Business cards</a><a href="/branded-apparel/">Branded apparel</a><a href="/diaries-asset-tags/">Diaries & asset tags</a><a href="/send-file/">Send a file</a><a href="/file-qr/">Print the file QR</a></div></div><div><h3>Contact</h3><div class="footer-links"><a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a><a href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20have%20an%20enquiry." target="_blank" rel="noopener noreferrer">WhatsApp · 0728 942 669</a><p>Chaka Place Building,<br>Arwings Kodhek Road,<br>Nairobi, Kenya</p><a href="https://www.google.com/maps/search/?api=1&query=Chaka+Place+Building%2C+Arwings+Kodhek+Road%2C+Nairobi%2C+Kenya" target="_blank" rel="noopener noreferrer">Open location in Maps ↗</a><a href="/admin/" rel="nofollow">Staff content editor ↗</a></div></div></div><div class="footer-bottom"><span>© <span data-year></span> Esicom Suppliers. All rights reserved.</span><span>Product availability and quotations confirmed on enquiry.</span></div></div></footer><a class="whatsapp" href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20would%20like%20to%20make%20an%20enquiry." target="_blank" rel="noopener noreferrer" aria-label="Chat with Esicom Suppliers on WhatsApp">◉ WhatsApp us</a><script>document.querySelector('[data-year]').textContent=new Date().getFullYear()</script><script src="/site.js?v=5" defer></script>'''
+    return '''<footer class="footer"><div class="wrap"><div class="footer-grid"><div><a class="brand" href="/" style="color:white"><span class="brand-mark" style="background:#fff;color:#10243d">E.</span><span><span class="brand-name">ESICOM</span><span class="brand-sub" style="color:#b9c8d8">Suppliers</span></span></a><p style="max-width:290px;line-height:1.8">Office essentials, computer consumables, bulk printing and corporate branding.</p><p style="font:800 18px Manrope,sans-serif;color:white">SUPPLY. PRINT. BRAND.</p></div><div><h3>Products</h3><div class="footer-links"><a href="/office-supplies/">Office supplies</a><a href="/paper-filing/">Paper & filing</a><a href="/computer-consumables/">Computer consumables</a><a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Product catalogue (PDF)</a></div></div><div><h3>Services</h3><div class="footer-links"><a href="/bulk-printing/">Bulk printing</a><a href="/branding/">Corporate branding</a><a href="/business-cards/">Business cards</a><a href="/branded-apparel/">Branded apparel</a><a href="/diaries-asset-tags/">Diaries & asset tags</a><a href="/send-file/">Send a file</a><a href="/file-qr/">Print the file QR</a></div></div><div><h3>Contact</h3><div class="footer-links"><a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a><a href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20have%20an%20enquiry." target="_blank" rel="noopener noreferrer">WhatsApp · 0728 942 669</a><p>Chaka Place Building,<br>Arwings Kodhek Road,<br>Nairobi, Kenya</p><a href="https://www.google.com/maps/search/?api=1&query=Chaka+Place+Building%2C+Arwings+Kodhek+Road%2C+Nairobi%2C+Kenya" target="_blank" rel="noopener noreferrer">Open location in Maps ↗</a></div></div></div><div class="footer-bottom"><span>© <span data-year></span> Esicom Suppliers. All rights reserved.</span><span>Product availability and quotations confirmed on enquiry.</span></div></div></footer><a class="whatsapp" href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20would%20like%20to%20make%20an%20enquiry." target="_blank" rel="noopener noreferrer" aria-label="Chat with Esicom Suppliers on WhatsApp">◉ WhatsApp us</a><script>document.querySelector('[data-year]').textContent=new Date().getFullYear()</script><script src="/site.js?v=5" defer></script>'''
 
 def catalogue_callout():
     return '<div class="catalogue-callout"><div><strong>Prefer a quick overview?</strong><p>Download the product and services catalogue as a PDF.</p></div><a class="btn btn-primary" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Download catalogue ↓</a></div>'
@@ -844,7 +1080,7 @@ def home_content():
     products=card('/office-supplies/','/images/photography/stock-boxed-pens.webp','Packaged pen','A real packaged pen. Ask us about the pens and everyday stationery your team needs.',credit='<a href="https://commons.wikimedia.org/wiki/File:Colorex_in_Verpackung.jpg" target="_blank" rel="noopener noreferrer">Photo: Oliver Laumann · CC BY-SA 4.0</a>')+card('/computer-consumables/','/images/photography/computer.webp','Computer consumables','Toners, cartridges and computer essentials. Tell us your printer model.')+card('/paper-filing/','/images/photography/stock-copy-paper.webp','Copy paper by the ream','A real photo of copy-paper reams. Ask us about paper sizes and quantities.',credit='<a href="https://commons.wikimedia.org/wiki/File:6_reams_of_paper_stacked_on_the_floor.jpg" target="_blank" rel="noopener noreferrer">Photo: Sage Ross · CC BY-SA 3.0</a>')
     services='''<a class="service-feature" href="/bulk-printing/"><img src="/images/photography/printing.webp" alt="Printed pages prepared for a business print job" loading="lazy"><div><h3>Bulk printing</h3><p>Business documents and printed materials, planned around your brief.</p><span class="link" style="color:#fff">Explore printing</span></div></a><a class="service-feature" href="/branding/"><img src="/images/photography/apparel.webp" alt="Plain shirt ready for a branded apparel enquiry" loading="lazy"><div><h3>Corporate branding</h3><p>Business cards, apparel, diaries and the details that carry your identity.</p><span class="link" style="color:#fff">Explore branding</span></div></a><a class="service-feature" href="/about/"><img src="/images/photography/meeting-room.webp" alt="Bright modern meeting room" loading="lazy"><div><h3>One helpful point of contact</h3><p>Office supplies, printing and branding brought together in Nairobi.</p><span class="link" style="color:#fff">Get to know Esicom</span></div></a>'''
     branded=card('/business-cards/','/images/photography/printing.webp','Business cards','Printed details that help your team make a consistent first impression.')+card('/branded-apparel/','/images/photography/apparel.webp','Branded apparel','An easy way to bring your team’s identity together.')+card('/diaries-asset-tags/','/images/photography/stationery.webp','Diaries & asset tags','Practical branded stationery and identification enquiries.')
-    return f'''<main><section class="hero"><div class="wrap hero-grid"><div><div class="eyebrow" data-copy-eyebrow>A Nairobi supplier for the workday</div><h1 data-copy-heading>Everything your office<br><span data-copy-highlight>needs.</span></h1><p class="lead" data-copy-intro>Everyday stationery, printing supplies and branded merchandise. Tell us what you need; we’ll take it from there.</p><div class="actions"><a class="btn btn-primary" href="/contact/">Tell us what you need ↗</a><a class="btn btn-light" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Browse the catalogue ↓</a></div><div style="margin-top:25px"><span class="mockup-label">Chaka Place · Nairobi, Kenya</span></div></div><div class="hero-visual"><div class="floating-note">Your local business supplier</div><img data-copy-image src="/images/photography/workspace.webp" alt="Bright, organized office workspace" fetchpriority="high" decoding="async"><div class="visual-caption">Office essentials. Printing. Your brand.</div></div></div></section><section class="strip"><div class="wrap strip-grid"><div class="strip-item"><b>01</b><span>Office & workplace</span></div><div class="strip-item"><b>02</b><span>Computer essentials</span></div><div class="strip-item"><b>03</b><span>Business printing</span></div><div class="strip-item"><b>04</b><span>Corporate branding</span></div></div></section><section class="section"><div class="wrap"><div class="section-head"><div><div class="eyebrow">SUPPLY · THE EVERYDAY ESSENTIALS</div><h2>The things every office runs on.</h2></div><p>Boxes of pens, reams of paper and the essentials your team reaches for every day. Tell us what you need and we’ll put together a quote.</p></div><div class="cards" data-featured-products>{products}</div>{catalogue_callout()}</div></section><section class="section dark"><div class="wrap"><div class="section-head"><div><div class="eyebrow">PRINT · BRAND · Bring your brief</div><h2>Print, paper and branded merchandise.</h2></div><p>Send us your artwork, list or logo. We’ll help you work through the details.</p></div><div class="service-panel premium-services">{services}</div></div></section><section class="section white"><div class="wrap"><div class="section-head"><div><div class="eyebrow">BRAND · THE LITTLE THINGS</div><h2>Put your name on something useful.</h2></div><p>From shirts and diaries to everyday stationery, ask us about branded items for your team.</p></div><div class="cards">{branded}</div></div></section><section class="section"><div class="wrap"><div class="cta-band"><div><div class="eyebrow">A simpler next step</div><h2>Have a list or a logo?</h2><p style="margin:0;color:var(--muted)">Send it over. We’ll help you take it from there.</p></div><a class="btn btn-primary" href="/contact/">Start a conversation ↗</a></div></div></section></main>'''
+    return f'''<main><section class="hero"><div class="wrap hero-grid"><div><div class="eyebrow" data-copy-eyebrow>A Nairobi supplier for the workday</div><h1 data-copy-heading>Everything your office<br><span data-copy-highlight>needs.</span></h1><p class="lead" data-copy-intro>Everyday stationery, printing supplies and branded merchandise. Tell us what you need; we’ll take it from there.</p><div class="actions"><a class="btn btn-primary" href="/contact/">Tell us what you need ↗</a><a class="btn btn-light" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Browse the catalogue ↓</a></div><div style="margin-top:25px"><span class="mockup-label">Chaka Place · Nairobi, Kenya</span></div></div><div class="hero-visual"><div class="floating-note">Your local business supplier</div><img data-copy-image src="/images/hero/hero-office-supplies.webp" alt="Esicom Suppliers branded notebooks and business cards on a forest-green desk" fetchpriority="high" decoding="async"><div class="visual-caption">Office essentials. Printing. Your brand.</div></div></div></section><section class="strip"><div class="wrap strip-grid"><div class="strip-item"><b>01</b><span>Office & workplace</span></div><div class="strip-item"><b>02</b><span>Computer essentials</span></div><div class="strip-item"><b>03</b><span>Business printing</span></div><div class="strip-item"><b>04</b><span>Corporate branding</span></div></div></section><section class="section"><div class="wrap"><div class="section-head"><div><div class="eyebrow">SUPPLY · THE EVERYDAY ESSENTIALS</div><h2>The things every office runs on.</h2></div><p>Boxes of pens, reams of paper and the essentials your team reaches for every day. Tell us what you need and we’ll put together a quote.</p></div><div class="cards" data-featured-products>{products}</div>{catalogue_callout()}</div></section><section class="section dark"><div class="wrap"><div class="section-head"><div><div class="eyebrow">PRINT · BRAND · Bring your brief</div><h2>Print, paper and branded merchandise.</h2></div><p>Send us your artwork, list or logo. We’ll help you work through the details.</p></div><div class="service-panel premium-services">{services}</div></div></section><section class="section white"><div class="wrap"><div class="section-head"><div><div class="eyebrow">BRAND · THE LITTLE THINGS</div><h2>Put your name on something useful.</h2></div><p>From shirts and diaries to everyday stationery, ask us about branded items for your team.</p></div><div class="cards">{branded}</div></div></section><section class="section"><div class="wrap"><div class="cta-band"><div><div class="eyebrow">A simpler next step</div><h2>Have a list or a logo?</h2><p style="margin:0;color:var(--muted)">Send it over. We’ll help you take it from there.</p></div><a class="btn btn-primary" href="/contact/">Start a conversation ↗</a></div></div></section></main>'''
 
 def detail_content(path,data):
     items=data.get('items',[])
@@ -870,9 +1106,23 @@ def page_html(path,data):
     desc=esc(data['intro'])
     page_key='home' if path=='/' else path.strip('/')
     content=content.replace('<main>','<main id="main-content" tabindex="-1" data-content-page="'+page_key+'">',1)
-    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="{NAVY}"><meta name="description" content="{desc}"><meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{desc}"><title>{esc(title)}</title><link rel="stylesheet" href="/styles.css?v=4"><script src="/site-config.js?v=3"></script></head><body>{header(path)}{content}{footer()}</body></html>'''
+    canonical=f'<link rel="canonical" href="{SITE_ORIGIN+path}">' if SITE_ORIGIN else ''
+    social_url=f'<meta property="og:url" content="{SITE_ORIGIN+path}"><meta name="twitter:card" content="summary">' if SITE_ORIGIN else '<meta name="twitter:card" content="summary">'
+    business_data=''
+    if path=='/':
+        business={"@context":"https://schema.org","@type":"LocalBusiness","name":"Esicom Suppliers","description":"Nairobi supplier of office supplies, computer consumables, printing and corporate branding.","email":"esicomsuppliers@gmail.com","telephone":"+254728942669","address":{"@type":"PostalAddress","streetAddress":"Chaka Place Building, Arwings Kodhek Road","addressLocality":"Nairobi","addressCountry":"KE"}}
+        if SITE_ORIGIN:
+            business['url']=SITE_ORIGIN
+        business_data='<script type="application/ld+json">'+json.dumps(business,ensure_ascii=False,separators=(',',':'))+'</script>'
+    return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="{NAVY}"><meta name="description" content="{desc}"><meta property="og:type" content="website"><meta property="og:site_name" content="Esicom Suppliers"><meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{desc}">{social_url}{canonical}<title>{esc(title)}</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css?v=4"><script src="/site-config.js?v=3"></script>{business_data}</head><body>{header(path)}{content}{footer()}</body></html>'''
 
 def main():
+    global SITE_ORIGIN
+    SITE_ORIGIN=os.environ.get('ESICOM_PUBLIC_SITE_URL','').strip().rstrip('/')
+    if SITE_ORIGIN:
+        parsed_site_origin=urlsplit(SITE_ORIGIN)
+        if parsed_site_origin.scheme!='https' or not parsed_site_origin.netloc or parsed_site_origin.path or parsed_site_origin.query or parsed_site_origin.fragment:
+            raise SystemExit('BUILD FAILED: ESICOM_PUBLIC_SITE_URL must be an HTTPS origin, such as https://www.example.com')
     if DIST.exists(): shutil.rmtree(DIST)
     DIST.mkdir(parents=True)
     (DIST/'styles.css').write_text(CSS,encoding='utf-8')
@@ -893,13 +1143,19 @@ def main():
         folder=DIST if path=='/' else DIST/path.strip('/')
         folder.mkdir(parents=True,exist_ok=True)
         (folder/'index.html').write_text(page_html(path,data),encoding='utf-8')
+    if SITE_ORIGIN:
+        sitemap=''.join(f'<url><loc>{SITE_ORIGIN+path}</loc></url>' for path in PAGES)
+        (DIST/'sitemap.xml').write_text('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'+sitemap+'</urlset>\n',encoding='utf-8')
+        (DIST/'robots.txt').write_text('User-agent: *\nAllow: /\nSitemap: '+SITE_ORIGIN+'/sitemap.xml\n',encoding='utf-8')
+    else:
+        (DIST/'robots.txt').write_text('User-agent: *\nAllow: /\n',encoding='utf-8')
     # Build aliases to preserve service-specific routes from the previous project.
     aliases={'/products/office-supplies/':'/office-supplies/','/products/computer-consumables/':'/computer-consumables/','/products/paper-filing/':'/paper-filing/','/services/printing/':'/bulk-printing/','/services/branding/':'/branding/','/services/business-cards/':'/business-cards/','/services/branded-apparel/':'/branded-apparel/','/services/diaries-asset-tags/':'/diaries-asset-tags/','/products/':'/office-supplies/'}
     for alias,target in aliases.items():
         folder=DIST/alias.strip('/'); folder.mkdir(parents=True,exist_ok=True)
         (folder/'index.html').write_text(f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url={target}"><link rel="canonical" href="{target}"><title>Continue to Esicom Suppliers</title></head><body><p>This page has moved. <a href="{target}">Continue to the relevant page</a>.</p></body></html>',encoding='utf-8')
     # Build gate: all expected pages, key facts, internal targets and assets must exist.
-    required=['index.html','office-supplies/index.html','computer-consumables/index.html','bulk-printing/index.html','branding/index.html','about/index.html','contact/index.html','send-file/index.html','file-qr/index.html','catalogue/esicom-suppliers-catalogue.pdf','images/photography/workspace.webp','images/photography/stationery.webp','images/photography/computer.webp','images/photography/printing.webp','images/photography/apparel.webp','images/photography/meeting-room.webp','images/photography/notebook.webp','images/photography/stock-boxed-pens.webp','images/photography/stock-copy-paper.webp','styles.css','site.js']
+    required=['index.html','office-supplies/index.html','computer-consumables/index.html','bulk-printing/index.html','branding/index.html','about/index.html','contact/index.html','send-file/index.html','file-qr/index.html','catalogue/esicom-suppliers-catalogue.pdf','favicon.svg','images/hero/hero-office-supplies.webp','images/hero/hero-computer.webp','images/hero/hero-printing.webp','images/hero/hero-branding.webp','images/photography/workspace.webp','images/photography/stationery.webp','images/photography/computer.webp','images/photography/printing.webp','images/photography/apparel.webp','images/photography/meeting-room.webp','images/photography/notebook.webp','images/photography/stock-boxed-pens.webp','images/photography/stock-copy-paper.webp','styles.css','site.js']
     missing=[x for x in required if not (DIST/x).is_file()]
     if missing: raise SystemExit('BUILD FAILED: missing files: '+', '.join(missing))
     bad=['10+ years','500+ clients','same-day delivery','nationwide delivery','SME support','authorized distributor','certifications']
