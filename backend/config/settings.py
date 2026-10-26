@@ -93,7 +93,10 @@ EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'website@localhost')
 ESICOM_ENQUIRY_EMAIL = os.environ.get('ESICOM_ENQUIRY_EMAIL', 'esicomsuppliers@gmail.com')
 ESICOM_PUBLIC_SITE_URL = os.environ.get('ESICOM_PUBLIC_SITE_URL', 'http://localhost:4173').rstrip('/')
-ESICOM_EDITOR_PREVIEW_URL = os.environ.get('ESICOM_EDITOR_PREVIEW_URL', 'http://127.0.0.1:4174').rstrip('/')
+ESICOM_EDITOR_PREVIEW_URL = os.environ.get(
+    'ESICOM_EDITOR_PREVIEW_URL',
+    ESICOM_PUBLIC_SITE_URL if not DEBUG else 'http://127.0.0.1:4174',
+).rstrip('/')
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
