@@ -1,6 +1,6 @@
 # Esicom Suppliers website
 
-Premium multi-page Esicom Suppliers website with a warm ivory, forest-green and brass palette, locally stored stock photography and the `SUPPLY. PRINT. BRAND.` positioning.
+Premium multi-page Esicom Suppliers website with a warm ivory, forest-green and brass palette, locally stored category-specific product photography and the `SUPPLY. PRINT. BRAND.` positioning.
 
 ## Pages included
 
@@ -23,19 +23,7 @@ Each category/service page has its own URL, page heading, imagery, specific serv
 
 ## Photography
 
-The homepage has an automatically rotating, manually controlled photo carousel for Esicom's office supplies, computer consumables, printing and branding. It uses locally stored, optimized WebP photographs from Unsplash and illustrative Commons photos of packaged pens and copy paper. These images illustrate product categories and are not proof of Esicom inventory or completed customer projects. Original image sources:
-
-- Workspace — [Unsplash photo](https://images.unsplash.com/photo-1497366811353-6870744d04b2)
-- Stationery — [Unsplash photo](https://images.unsplash.com/photo-1517842645767-c639042777db)
-- Computer workspace — [Unsplash photo](https://images.unsplash.com/photo-1498050108023-c5249f4df085)
-- Printed materials — [Unsplash photo](https://images.unsplash.com/photo-1562654501-a0ccc0fc3fb1)
-- Apparel — [Unsplash photo](https://images.unsplash.com/photo-1521572163474-6864f9cf17ab)
-- Meeting room — [Unsplash photo](https://images.unsplash.com/photo-1524758631624-e2822e304c36)
-- Notebook — [Unsplash photo](https://images.unsplash.com/photo-1455390582262-044cdead277a)
-
-Photographs are used under the [Unsplash License](https://unsplash.com/license).
-
-The packaged-pen image is [Colorex in Verpackung](https://commons.wikimedia.org/wiki/File:Colorex_in_Verpackung.jpg) by Oliver Laumann, [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/). The copy-paper image is [6 reams of paper stacked on the floor](https://commons.wikimedia.org/wiki/File:6_reams_of_paper_stacked_on_the_floor.jpg) by Sage Ross, [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Credits are linked on the relevant homepage cards.
+The four homepage opening carousel images are kept as the existing locally stored files in `public/images/hero/`. Other page heroes and cards use topic-matched photography in `public/images/products/`. Standard office stationery stays generic and unbranded. Branding examples show the supplied Esicom polo plus distinct ivory, forest-green, plum and terracotta Esicom-branded notebook/diary and asset-tag designs, and Esicom business-card colourways. The brand mockups intentionally demonstrate varied serif and sans-serif typography, wordmark scale and placement while preserving the exact Esicom Suppliers name. Computer Consumables includes office printers and printer supplies. Branded design renders are illustrative mockups, not completed customer orders or confirmation of available stock. No generic legacy stock-photo set is included in the build.
 
 ## Build and preview locally
 

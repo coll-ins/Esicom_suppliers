@@ -1,6 +1,6 @@
 # Esicom Suppliers — multi-page website + Django quotation backend
 
-Premium multi-page business website for Esicom Suppliers. Each core service has a dedicated page and URL; this is not a one-page anchor website. The frontend production build is dependency-free Python and emits static HTML, CSS, JavaScript, locally stored Unsplash photography and a downloadable PDF catalogue. Django stores quotation requests and attempts to send email notifications.
+Premium multi-page business website for Esicom Suppliers. Each core service has a dedicated page and URL; this is not a one-page anchor website. The frontend production build is dependency-free Python and emits static HTML, CSS, JavaScript, locally stored category-specific product photography and a downloadable PDF catalogue. Django stores quotation requests and attempts to send email notifications.
 
 ## Included pages
 
@@ -16,7 +16,7 @@ Premium multi-page business website for Esicom Suppliers. Each core service has 
 - `/paper-filing/`, `/business-cards/`, `/branded-apparel/`, `/diaries-asset-tags/` — supporting category pages
 - `/catalogue/esicom-suppliers-catalogue.pdf` — downloadable product and services catalogue
 
-Older route paths from the previous archive redirect to the relevant dedicated page. Site photographs are optimized WebP copies stored locally, so pages do not rely on a third-party image server at visit time. The images illustrate product and service categories; they are not presented as completed Esicom client work. Photo sources are documented in the frontend README.
+Older route paths from the previous archive redirect to the relevant dedicated page. Site photographs are stored locally, so pages do not rely on a third-party image server at visit time. Ordinary office stationery remains unbranded; the branding section includes illustrative Esicom-branded notebook, asset-tag and business-card design mockups, the supplied polo reference, and computer/printer product examples. Mockups illustrate possible designs; they are not completed customer orders or proof of stock. See the frontend README for details.
 
 ## Confirmed business details
 
