@@ -32,8 +32,6 @@ CSS = r'''@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400
 html{scroll-padding-top:100px}
 main[id]{scroll-margin-top:100px}
 :focus-visible{outline:3px solid #3975a8;outline-offset:4px}
-.skip-link{position:fixed;z-index:100;top:12px;left:12px;transform:translateY(-160%);padding:12px 16px;border-radius:10px;background:#fff;color:var(--navy);font-weight:800;box-shadow:var(--shadow)}
-.skip-link:focus{transform:translateY(0)}
 .mobile-nav{max-height:calc(100vh - 74px);overflow-y:auto}
 .mobile-nav a[aria-current=page]{background:var(--pale);color:var(--blue)}
 .btn:focus-visible,.menu-btn:focus-visible,.whatsapp:focus-visible{outline-offset:3px}
@@ -138,7 +136,7 @@ body{background:var(--paper);color:#203b34}
 .qr-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
 .qr-instructions{max-width:540px;margin:0 auto 20px;color:var(--muted)}
 @media(max-width:760px){.upload-shell,.qr-shell{padding:36px 0 55px}.upload-grid{grid-template-columns:1fr}}
-@media print{.topline,.header,.footer,.whatsapp,.qr-actions,.skip-link{display:none!important}body,.qr-shell{background:#fff!important}.wrap{width:100%}.qr-card{border:0;box-shadow:none;padding:15mm}.qr-image{width:85mm;margin:12mm auto}.qr-card h1{font-size:28pt}}
+@media print{.topline,.header,.footer,.whatsapp,.qr-actions{display:none!important}body,.qr-shell{background:#fff!important}.wrap{width:100%}.qr-card{border:0;box-shadow:none;padding:15mm}.qr-image{width:85mm;margin:12mm auto}.qr-card h1{font-size:28pt}}
 
 /* A darker, photo-led identity inspired by the reference while keeping Esicom's own palette. */
 .header{background:rgba(20,51,45,.97);border-bottom-color:#ffffff1c;box-shadow:0 12px 35px rgba(13,38,31,.18)}
@@ -524,13 +522,13 @@ img:not(.brand-logo){object-fit:contain!important;object-position:center center!
 .mobile-nav-backdrop{display:none}
 @media(max-width:900px){
   .header{backdrop-filter:none;-webkit-backdrop-filter:none}
-  .mobile-nav-backdrop{display:block;position:fixed;inset:var(--mobile-nav-top,74px) 0 0;z-index:29;border:0;padding:0;background:rgba(12,30,25,.38);-webkit-backdrop-filter:blur(8px) saturate(1.05);backdrop-filter:blur(8px) saturate(1.05);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .32s ease,visibility .32s ease}
+  .mobile-nav-backdrop{display:block;position:fixed;inset:0;z-index:29;border:0;padding:0;background:rgba(12,30,25,.38);-webkit-backdrop-filter:blur(8px) saturate(1.05);backdrop-filter:blur(8px) saturate(1.05);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .32s ease,visibility .32s ease}
   .mobile-nav-backdrop.open{opacity:1;visibility:visible;pointer-events:auto}
-  .mobile-nav{display:grid!important;position:fixed;top:var(--mobile-nav-top,74px);left:0;right:auto;bottom:0;width:min(86vw,380px);height:auto;max-height:none!important;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;align-content:start;gap:7px;padding:22px 20px calc(22px + env(safe-area-inset-bottom));background:#f5f3ed!important;border:0;border-right:1px solid #d4d4ca;box-shadow:18px 0 48px rgba(20,51,45,.16);border-radius:0!important;z-index:30;transform:translate3d(-105%,0,0);visibility:hidden;pointer-events:none;transition:transform .34s cubic-bezier(.22,1,.36,1),visibility .34s ease;will-change:transform}
+  .mobile-nav{display:grid!important;position:fixed;top:0;left:0;right:auto;bottom:0;width:min(86vw,380px);height:auto;max-height:none!important;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;align-content:start;gap:7px;padding:calc(22px + env(safe-area-inset-top)) 20px calc(22px + env(safe-area-inset-bottom));background:#f5f3ed!important;border:0;border-right:1px solid #d4d4ca;box-shadow:18px 0 48px rgba(20,51,45,.16);border-radius:0!important;z-index:30;transform:translate3d(-105%,0,0);visibility:hidden;pointer-events:none;transition:transform .34s cubic-bezier(.22,1,.36,1),visibility .34s ease;will-change:transform}
   .mobile-nav.open{transform:translate3d(0,0,0);visibility:visible;pointer-events:auto}
   .mobile-nav a{display:flex;align-items:center;min-height:46px;padding:12px 14px;border-radius:10px;color:#173a31!important;font-size:14px;font-weight:700}
   .mobile-nav a:hover,.mobile-nav a[aria-current=page]{background:#e8eee6!important;color:#173a31!important}
-  .mobile-nav .mobile-home{font-weight:800}
+  .mobile-nav .mobile-nav-close{display:grid;place-items:center;justify-self:end;width:44px;height:44px;min-height:44px;margin:0 0 8px auto;padding:0;border:1px solid #d4d4ca;border-radius:12px;background:#fffefa;color:#173a31;font-size:25px;line-height:1;cursor:pointer}.mobile-nav .mobile-home{font-weight:800}
   html.menu-open{overflow:hidden;overscroll-behavior:none}
   body.menu-open{overscroll-behavior:none}
 }
@@ -542,8 +540,9 @@ img:not(.brand-logo){object-fit:contain!important;object-position:center center!
 JS = r'''(()=>{
 const menu=document.querySelector('[data-menu-button]');
 const nav=document.querySelector('[data-mobile-nav]');
-const backdrop=document.querySelector('[data-menu-close]');
-if(menu&&nav&&backdrop){
+const backdrop=document.querySelector('[data-menu-backdrop]');
+const closeButton=document.querySelector('[data-menu-close]');
+if(menu&&nav&&backdrop&&closeButton){
   const updateMenuTop=()=>{
     const header=document.querySelector('.header');
     if(header)document.documentElement.style.setProperty('--mobile-nav-top',Math.max(0,header.getBoundingClientRect().bottom)+'px');
@@ -564,6 +563,7 @@ if(menu&&nav&&backdrop){
     if(!open&&nav.contains(document.activeElement))menu.focus({preventScroll:true});
   };
   menu.addEventListener('click',()=>setMenuOpen(!nav.classList.contains('open')));
+  closeButton.addEventListener('click',()=>setMenuOpen(false));
   backdrop.addEventListener('click',()=>setMenuOpen(false));
   nav.addEventListener('click',event=>{
     if(event.target.closest('a'))setMenuOpen(false);
@@ -1159,7 +1159,7 @@ def esc(s):
 def header(path):
     links=''.join(f'<a href="{href}"'+(' aria-current="page"' if path==href else '')+f'>{label}</a>' for href,label in NAV)
     home_link='<a class="mobile-home" href="/"'+(' aria-current="page"' if path=='/' else '')+'>Home</a>'
-    return f'''<a class="skip-link" href="#main-content">Skip to main content</a><div class="topline"><div class="wrap"><span>SUPPLY. PRINT. BRAND.</span><span>Chaka Place Building · Nairobi, Kenya &nbsp; | &nbsp; <a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a></span></div></div><header class="header"><div class="wrap navrow"><a class="brand" href="/" aria-label="Esicom Suppliers home"><img class="brand-logo" src="/images/brand/esicom-logo.png?v=2" alt="" width="54" height="54" decoding="async"><span><span class="brand-name">ESICOM</span><span class="brand-sub">Suppliers</span></span></a><nav class="navlinks" aria-label="Main navigation">{links}</nav><div class="nav-actions"><a class="btn btn-light catalogue-btn" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Catalogue ↓</a><a class="btn btn-primary quote-btn" href="/contact/">Request a quote ↗</a><button class="menu-btn" data-menu-button aria-controls="mobile-navigation" aria-expanded="false" aria-label="Open navigation">☰</button></div></div></header><button class="mobile-nav-backdrop" data-menu-close type="button" aria-label="Close navigation" aria-hidden="true" tabindex="-1"></button><nav class="mobile-nav" id="mobile-navigation" data-mobile-nav aria-label="Mobile navigation" aria-hidden="true">{home_link}{links}<a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Download product catalogue (PDF)</a><a href="/contact/">Request a quote ↗</a></nav>'''
+    return f'''<div class="topline"><div class="wrap"><span>SUPPLY. PRINT. BRAND.</span><span>Chaka Place Building · Nairobi, Kenya &nbsp; | &nbsp; <a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a></span></div></div><header class="header"><div class="wrap navrow"><a class="brand" href="/" aria-label="Esicom Suppliers home"><img class="brand-logo" src="/images/brand/esicom-logo.png?v=2" alt="" width="54" height="54" decoding="async"><span><span class="brand-name">ESICOM</span><span class="brand-sub">Suppliers</span></span></a><nav class="navlinks" aria-label="Main navigation">{links}</nav><div class="nav-actions"><a class="btn btn-light catalogue-btn" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Catalogue ↓</a><a class="btn btn-primary quote-btn" href="/contact/">Request a quote ↗</a><button class="menu-btn" data-menu-button aria-controls="mobile-navigation" aria-expanded="false" aria-label="Open navigation">☰</button></div></div></header><button class="mobile-nav-backdrop" data-menu-backdrop type="button" aria-label="Close navigation" aria-hidden="true" tabindex="-1"></button><nav class="mobile-nav" id="mobile-navigation" data-mobile-nav aria-label="Mobile navigation" aria-hidden="true"><button class="mobile-nav-close" data-menu-close type="button" aria-label="Close navigation">×</button>{home_link}{links}<a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Download product catalogue (PDF)</a><a href="/contact/">Request a quote ↗</a></nav>'''
 
 def footer():
     return '''<footer class="footer"><div class="wrap"><div class="footer-grid"><div><a class="brand" href="/" style="color:white"><img class="brand-logo" src="/images/brand/esicom-logo.png?v=2" alt="" width="54" height="54" decoding="async"><span><span class="brand-name">ESICOM</span><span class="brand-sub" style="color:#b9c8d8">Suppliers</span></span></a><p style="max-width:290px;line-height:1.8">Office essentials, computer consumables, bulk printing and corporate branding.</p><p style="font:800 18px Manrope,sans-serif;color:white">SUPPLY. PRINT. BRAND.</p></div><div><h3>Products</h3><div class="footer-links"><a href="/office-supplies/">Office supplies</a><a href="/paper-filing/">Paper & filing</a><a href="/computer-consumables/">Computer consumables</a><a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Product catalogue (PDF)</a></div></div><div><h3>Services</h3><div class="footer-links"><a href="/bulk-printing/">Bulk printing</a><a href="/branding/">Corporate branding</a><a href="/business-cards/">Business cards</a><a href="/branded-apparel/">Branded apparel</a><a href="/diaries-asset-tags/">Diaries & asset tags</a><a href="/send-file/">Send a file</a><a href="/file-qr/">Print the file QR</a></div></div><div><h3>Contact</h3><div class="footer-links"><a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a><a href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20have%20an%20enquiry." target="_blank" rel="noopener noreferrer">WhatsApp · 0728 942 669</a><p>Chaka Place Building,<br>Arwings Kodhek Road,<br>Nairobi, Kenya</p><a href="https://www.google.com/maps/search/?api=1&query=Chaka+Place+Building%2C+Arwings+Kodhek+Road%2C+Nairobi%2C+Kenya" target="_blank" rel="noopener noreferrer">Open location in Maps ↗</a></div></div></div><section class="footer-location" aria-labelledby="footer-location-title"><div class="footer-location-copy"><div class="eyebrow">VISIT ESICOM SUPPLIERS</div><h2 id="footer-location-title">Find us at Chaka Place.</h2><p>Chaka Place Building, Argwings Kodhek Road, Nairobi, Kenya</p><a class="footer-map-link" href="https://www.google.com/maps/search/?api=1&amp;query=Chaka+Place+Building%2C+Argwings+Kodhek+Road%2C+Nairobi%2C+Kenya" target="_blank" rel="noopener noreferrer">Open directions ↗</a></div><div class="footer-map-frame"><iframe title="Map to Esicom Suppliers at Chaka Place, Nairobi" src="https://maps.google.com/maps?q=Chaka%20Place%20Building%2C%20Argwings%20Kodhek%20Road%2C%20Nairobi%2C%20Kenya&amp;z=16&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe></div></section><div class="footer-bottom"><span>© <span data-year></span> Esicom Suppliers. All rights reserved.</span><span>Product availability and quotations confirmed on enquiry.</span></div></div></footer><a class="whatsapp" href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20would%20like%20to%20make%20an%20enquiry." target="_blank" rel="noopener noreferrer" aria-label="Chat with Esicom Suppliers on WhatsApp">◉ WhatsApp us</a><script>document.querySelector('[data-year]').textContent=new Date().getFullYear()</script><script src="/site.js?v=7" defer></script>'''
