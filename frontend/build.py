@@ -521,29 +521,82 @@ img:not(.brand-logo){object-fit:contain!important;object-position:center center!
 .footer-map-frame iframe{display:block;width:100%;height:100%;min-height:250px;border:0}
 @media(max-width:700px){.footer-location{grid-template-columns:1fr;gap:18px;padding:24px 0}.footer-map-frame,.footer-map-frame iframe{min-height:270px}}
 
+.mobile-nav-backdrop{display:none}
+@media(max-width:900px){
+  .header{backdrop-filter:none;-webkit-backdrop-filter:none}
+  .mobile-nav-backdrop{display:block;position:fixed;inset:var(--mobile-nav-top,74px) 0 0;z-index:29;border:0;padding:0;background:rgba(12,30,25,.38);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .24s ease,visibility .24s ease}
+  .mobile-nav-backdrop.open{opacity:1;visibility:visible;pointer-events:auto}
+  .mobile-nav{display:grid!important;position:fixed;top:var(--mobile-nav-top,74px);right:0;bottom:0;left:auto;width:min(86vw,380px);height:auto;max-height:none!important;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;align-content:start;gap:7px;padding:22px 20px calc(22px + env(safe-area-inset-bottom));background:#f5f3ed!important;border:0;border-left:1px solid #d4d4ca;box-shadow:-18px 0 48px rgba(20,51,45,.16);border-radius:0!important;z-index:30;transform:translateX(105%);visibility:hidden;pointer-events:none;transition:transform .24s cubic-bezier(.2,.75,.2,1),visibility .24s ease}
+  .mobile-nav.open{transform:translateX(0);visibility:visible;pointer-events:auto}
+  .mobile-nav a{display:flex;align-items:center;min-height:46px;padding:12px 14px;border-radius:10px;color:#173a31!important;font-size:14px;font-weight:700}
+  .mobile-nav a:hover,.mobile-nav a[aria-current=page]{background:#e8eee6!important;color:#173a31!important}
+  .mobile-nav .mobile-home{font-weight:800}
+  html.menu-open{overflow:hidden;overscroll-behavior:none}
+  body.menu-open{overscroll-behavior:none}
+}
+@media(min-width:901px){.mobile-nav-backdrop{display:none!important}}
+@media(prefers-reduced-motion:reduce){.mobile-nav,.mobile-nav-backdrop{transition:none!important}}
+
 '''
 
 JS = r'''(()=>{
 const menu=document.querySelector('[data-menu-button]');
 const nav=document.querySelector('[data-mobile-nav]');
-if(menu&&nav){
+const backdrop=document.querySelector('[data-menu-close]');
+if(menu&&nav&&backdrop){
+  const updateMenuTop=()=>{
+    const header=document.querySelector('.header');
+    if(header)document.documentElement.style.setProperty('--mobile-nav-top',Math.max(0,header.getBoundingClientRect().bottom)+'px');
+  };
+  const focusable=()=>[...nav.querySelectorAll('a[href],button:not([disabled])')];
   const setMenuOpen=open=>{
+    if(open&&window.innerWidth>900)return;
+    updateMenuTop();
     nav.classList.toggle('open',open);
+    backdrop.classList.toggle('open',open);
+    document.documentElement.classList.toggle('menu-open',open);
+    document.body.classList.toggle('menu-open',open);
+    nav.setAttribute('aria-hidden',String(!open));
+    backdrop.setAttribute('aria-hidden',String(!open));
     menu.setAttribute('aria-expanded',String(open));
     menu.setAttribute('aria-label',open?'Close navigation':'Open navigation');
     menu.textContent=open?'×':'☰';
+    if(!open&&nav.contains(document.activeElement))menu.focus({preventScroll:true});
   };
   menu.addEventListener('click',()=>setMenuOpen(!nav.classList.contains('open')));
+  backdrop.addEventListener('click',()=>setMenuOpen(false));
   nav.addEventListener('click',event=>{
     if(event.target.closest('a'))setMenuOpen(false);
   });
   document.addEventListener('keydown',event=>{
-    if(event.key==='Escape'&&nav.classList.contains('open')){
+    if(!nav.classList.contains('open'))return;
+    if(event.key==='Escape'){
+      event.preventDefault();
       setMenuOpen(false);
-      menu.focus();
+      return;
+    }
+    if(event.key==='Tab'){
+      const items=focusable();
+      if(!items.length){event.preventDefault();return;}
+      const first=items[0],last=items[items.length-1];
+      if(event.shiftKey&&(document.activeElement===first||document.activeElement===menu)){event.preventDefault();last.focus();}
+      else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
     }
   });
+  document.addEventListener('touchmove',event=>{
+    if(nav.classList.contains('open')&&!nav.contains(event.target))event.preventDefault();
+  },{passive:false});
+  document.addEventListener('wheel',event=>{
+    if(nav.classList.contains('open')&&!nav.contains(event.target))event.preventDefault();
+  },{passive:false});
+  window.addEventListener('scroll',updateMenuTop,{passive:true});
+  window.addEventListener('resize',()=>{
+    updateMenuTop();
+    if(window.innerWidth>900&&nav.classList.contains('open'))setMenuOpen(false);
+  });
+  updateMenuTop();
 }
+
 const main=document.querySelector('main[data-content-page]');
 const pageKey=main?.dataset.contentPage;
 const localApiBase=['localhost','127.0.0.1'].includes(location.hostname)&&['4173','4174','5173'].includes(location.port)?'http://127.0.0.1:8000':'';
@@ -1105,7 +1158,8 @@ def esc(s):
 
 def header(path):
     links=''.join(f'<a href="{href}"'+(' aria-current="page"' if path==href else '')+f'>{label}</a>' for href,label in NAV)
-    return f'''<a class="skip-link" href="#main-content">Skip to main content</a><div class="topline"><div class="wrap"><span>SUPPLY. PRINT. BRAND.</span><span>Chaka Place Building · Nairobi, Kenya &nbsp; | &nbsp; <a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a></span></div></div><header class="header"><div class="wrap navrow"><a class="brand" href="/" aria-label="Esicom Suppliers home"><img class="brand-logo" src="/images/brand/esicom-logo.png?v=2" alt="" width="54" height="54" decoding="async"><span><span class="brand-name">ESICOM</span><span class="brand-sub">Suppliers</span></span></a><nav class="navlinks" aria-label="Main navigation">{links}</nav><div class="nav-actions"><a class="btn btn-light catalogue-btn" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Catalogue ↓</a><a class="btn btn-primary quote-btn" href="/contact/">Request a quote ↗</a><button class="menu-btn" data-menu-button aria-controls="mobile-navigation" aria-expanded="false" aria-label="Open navigation">☰</button></div></div><nav class="mobile-nav" id="mobile-navigation" data-mobile-nav aria-label="Mobile navigation">{links}<a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Download product catalogue (PDF)</a><a href="/contact/">Request a quote ↗</a></nav></header>'''
+    home_link='<a class="mobile-home" href="/"'+(' aria-current="page"' if path=='/' else '')+'>Home</a>'
+    return f'''<a class="skip-link" href="#main-content">Skip to main content</a><div class="topline"><div class="wrap"><span>SUPPLY. PRINT. BRAND.</span><span>Chaka Place Building · Nairobi, Kenya &nbsp; | &nbsp; <a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a></span></div></div><header class="header"><div class="wrap navrow"><a class="brand" href="/" aria-label="Esicom Suppliers home"><img class="brand-logo" src="/images/brand/esicom-logo.png?v=2" alt="" width="54" height="54" decoding="async"><span><span class="brand-name">ESICOM</span><span class="brand-sub">Suppliers</span></span></a><nav class="navlinks" aria-label="Main navigation">{links}</nav><div class="nav-actions"><a class="btn btn-light catalogue-btn" href="/catalogue/esicom-suppliers-catalogue.pdf" download>Catalogue ↓</a><a class="btn btn-primary quote-btn" href="/contact/">Request a quote ↗</a><button class="menu-btn" data-menu-button aria-controls="mobile-navigation" aria-expanded="false" aria-label="Open navigation">☰</button></div></div></header><button class="mobile-nav-backdrop" data-menu-close type="button" aria-label="Close navigation" aria-hidden="true" tabindex="-1"></button><nav class="mobile-nav" id="mobile-navigation" data-mobile-nav aria-label="Mobile navigation" aria-hidden="true">{home_link}{links}<a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Download product catalogue (PDF)</a><a href="/contact/">Request a quote ↗</a></nav>'''
 
 def footer():
     return '''<footer class="footer"><div class="wrap"><div class="footer-grid"><div><a class="brand" href="/" style="color:white"><img class="brand-logo" src="/images/brand/esicom-logo.png?v=2" alt="" width="54" height="54" decoding="async"><span><span class="brand-name">ESICOM</span><span class="brand-sub" style="color:#b9c8d8">Suppliers</span></span></a><p style="max-width:290px;line-height:1.8">Office essentials, computer consumables, bulk printing and corporate branding.</p><p style="font:800 18px Manrope,sans-serif;color:white">SUPPLY. PRINT. BRAND.</p></div><div><h3>Products</h3><div class="footer-links"><a href="/office-supplies/">Office supplies</a><a href="/paper-filing/">Paper & filing</a><a href="/computer-consumables/">Computer consumables</a><a href="/catalogue/esicom-suppliers-catalogue.pdf" download>Product catalogue (PDF)</a></div></div><div><h3>Services</h3><div class="footer-links"><a href="/bulk-printing/">Bulk printing</a><a href="/branding/">Corporate branding</a><a href="/business-cards/">Business cards</a><a href="/branded-apparel/">Branded apparel</a><a href="/diaries-asset-tags/">Diaries & asset tags</a><a href="/send-file/">Send a file</a><a href="/file-qr/">Print the file QR</a></div></div><div><h3>Contact</h3><div class="footer-links"><a href="mailto:esicomsuppliers@gmail.com">esicomsuppliers@gmail.com</a><a href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20have%20an%20enquiry." target="_blank" rel="noopener noreferrer">WhatsApp · 0728 942 669</a><p>Chaka Place Building,<br>Arwings Kodhek Road,<br>Nairobi, Kenya</p><a href="https://www.google.com/maps/search/?api=1&query=Chaka+Place+Building%2C+Arwings+Kodhek+Road%2C+Nairobi%2C+Kenya" target="_blank" rel="noopener noreferrer">Open location in Maps ↗</a></div></div></div><section class="footer-location" aria-labelledby="footer-location-title"><div class="footer-location-copy"><div class="eyebrow">VISIT ESICOM SUPPLIERS</div><h2 id="footer-location-title">Find us at Chaka Place.</h2><p>Chaka Place Building, Argwings Kodhek Road, Nairobi, Kenya</p><a class="footer-map-link" href="https://www.google.com/maps/search/?api=1&amp;query=Chaka+Place+Building%2C+Argwings+Kodhek+Road%2C+Nairobi%2C+Kenya" target="_blank" rel="noopener noreferrer">Open directions ↗</a></div><div class="footer-map-frame"><iframe title="Map to Esicom Suppliers at Chaka Place, Nairobi" src="https://maps.google.com/maps?q=Chaka%20Place%20Building%2C%20Argwings%20Kodhek%20Road%2C%20Nairobi%2C%20Kenya&amp;z=16&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade" allowfullscreen></iframe></div></section><div class="footer-bottom"><span>© <span data-year></span> Esicom Suppliers. All rights reserved.</span><span>Product availability and quotations confirmed on enquiry.</span></div></div></footer><a class="whatsapp" href="https://wa.me/254728942669?text=Hello%20Esicom%20Suppliers%2C%20I%20would%20like%20to%20make%20an%20enquiry." target="_blank" rel="noopener noreferrer" aria-label="Chat with Esicom Suppliers on WhatsApp">◉ WhatsApp us</a><script>document.querySelector('[data-year]').textContent=new Date().getFullYear()</script><script src="/site.js?v=7" defer></script>'''
