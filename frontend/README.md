@@ -68,6 +68,6 @@ The Django Admin at `/admin/` is the staff-only editor for website copy and prod
 
 - Esicom Suppliers
 - Email: `esicomsuppliers@gmail.com`
-- Location: Chaka Place Building, Arwings Kodhek Road, Nairobi, Kenya
+- Location: Chaka Place Building, Argwings Kodhek Road, Nairobi, Kenya
 - Offerings: stationery and office supplies, printing paper, files and folders, notebooks, pens, toners, cartridges, computer appliances, bulk printing, business cards, branded shirts, asset tags, diaries, and corporate branding.
 - Stock photographs illustrate the product categories and do not depict Esicom customer projects. Do not add unverified claims about customers, delivery times, partnerships or certifications.
