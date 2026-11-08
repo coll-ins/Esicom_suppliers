@@ -23,7 +23,7 @@ Older route paths from the previous archive redirect to the relevant dedicated p
 - Business: Esicom Suppliers
 - Email: `esicomsuppliers@gmail.com`
 - WhatsApp: `0728 942 669` (international link uses `254728942669`)
-- Address: Chaka Place Building, Arwings Kodhek Road, Nairobi, Kenya
+- Address: Chaka Place Building, Argwings Kodhek Road, Nairobi, Kenya
 - Positioning: `SUPPLY. PRINT. BRAND.`
 
 The site intentionally does not claim nationwide delivery, SME support, years of experience, customer counts, same-day delivery, certifications, authorised distributorships, or unconfirmed payment methods.
