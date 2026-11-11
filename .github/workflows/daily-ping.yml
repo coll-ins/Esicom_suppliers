@@ -1,0 +1,15 @@
+# Wakes the Render backend once a day. The first request of each day starts the
+# ledger's daily jobs (due-date reminder emails), even on days nobody uses the dashboard.
+name: Daily wake-up
+on:
+  schedule:
+    - cron: "17 4 * * *" # 07:17 Nairobi time
+  workflow_dispatch:
+permissions: {}
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Ping backend health
+        run: curl -fsS --retry 6 --retry-delay 30 --retry-all-errors --max-time 90 https://esicom-suppliers.onrender.com/api/health/

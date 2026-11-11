@@ -107,6 +107,8 @@ if not DEBUG and not ESICOM_PUBLIC_SITE_URL.startswith('https://'):
 
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
+if ESICOM_DASHBOARD_URL.startswith('https://') and ESICOM_DASHBOARD_URL not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(ESICOM_DASHBOARD_URL)
 
 # Ledger dashboard. It reaches this API through a Vercel rewrite (/ledger-api/* -> /api/ledger/*),
 # so the session cookie is first-party. Add the dashboard origin to DJANGO_CSRF_TRUSTED_ORIGINS.

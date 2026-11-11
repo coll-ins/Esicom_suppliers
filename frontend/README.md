@@ -16,8 +16,7 @@ Premium multi-page Esicom Suppliers website with a warm ivory, forest-green and 
 - `/services/diaries-asset-tags` — Diaries, branded stationery and asset tags
 - `/about` — About Esicom
 - `/contact` — Contact and quotation form
-- `/send-file` — QR-linked file submission and conversion page
-- `/file-qr` — Printable/downloadable QR page for file submissions
+- File uploads now live on the backend at `/upload/` (reached through a Vercel rewrite); the QR code is shown only in the staff dashboard.
 
 Each category/service page has its own URL, page heading, imagery, specific service information and quotation CTA. Navigation and footer links connect the pages.
 
