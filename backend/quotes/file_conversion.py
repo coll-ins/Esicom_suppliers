@@ -1,17 +1,13 @@
-import os
 import subprocess
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import pymupdf as fitz
-from pdf2docx import Converter
 
 MAX_PDF_PAGES = 1000
 MAX_DOCX_BYTES = 30 * 1024 * 1024
 MAX_DOCX_UNPACKED = 60 * 1024 * 1024  # stops "zip bombs": small files that unpack to gigabytes
 CONVERT_TIMEOUT_SECONDS = 90
-CONVERT_MEMORY_BYTES = 1536 * 1024 * 1024
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -22,14 +18,9 @@ def docx_unpacked_size(path_or_file):
         return sum(info.file_size for info in archive.infolist())
 
 
-def _limit_child():
-    import resource
-
-    resource.setrlimit(resource.RLIMIT_AS, (CONVERT_MEMORY_BYTES, CONVERT_MEMORY_BYTES))
-
-
 def convert_file(source_path, original_filename, conversion):
-    """Convert in a child process with a time and memory limit, so one bad file cannot hang the server."""
+    """Convert in a child process with a time limit, so one bad file cannot hang the web server.
+    Size limits are checked before this runs (see docx_unpacked_size and the upload view)."""
     if conversion not in {"docx", "pdf"}:
         raise ValueError("Choose a supported conversion.")
     code = (
@@ -48,7 +39,6 @@ def convert_file(source_path, original_filename, conversion):
             capture_output=True,
             text=True,
             timeout=CONVERT_TIMEOUT_SECONDS,
-            preexec_fn=_limit_child if os.name == "posix" else None,  # noqa: PLW1509
         )
     except subprocess.TimeoutExpired:
         raise ValueError("This file took too long to convert. Send it without converting.") from None
@@ -57,7 +47,7 @@ def convert_file(source_path, original_filename, conversion):
             proc.stderr.strip().splitlines()[-1] if proc.stderr.strip() else "The file could not be converted."
         )
     if proc.returncode != 0:
-        raise RuntimeError(f"Conversion failed: {proc.stderr[-500:]}")
+        raise RuntimeError(f"Conversion failed (exit {proc.returncode}): {proc.stderr[-500:]}")
     return Path(proc.stdout.strip().splitlines()[-1])
 
 
@@ -101,6 +91,9 @@ def _convert_docx(source, stem):
 
 
 def _convert_pdf(source, stem):
+    import pymupdf as fitz
+    from pdf2docx import Converter
+
     with fitz.open(source) as document:
         if document.is_encrypted:
             raise ValueError("Password-protected PDFs cannot be converted.")
