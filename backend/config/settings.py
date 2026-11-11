@@ -1,4 +1,5 @@
 ﻿import os
+from urllib.parse import urlsplit
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -111,7 +112,8 @@ if not DEBUG and not ESICOM_PUBLIC_SITE_URL.startswith('https://'):
 
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
-for _origin in (ESICOM_DASHBOARD_URL, ESICOM_PUBLIC_SITE_URL):
+for _url in (ESICOM_DASHBOARD_URL, ESICOM_PUBLIC_SITE_URL):
+    _origin = '{0.scheme}://{0.netloc}'.format(urlsplit(_url))  # CSRF compares origins, never paths
     if _origin.startswith('https://') and _origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(_origin)
 

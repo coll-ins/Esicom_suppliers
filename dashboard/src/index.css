@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
-@font-face { font-family: "Manrope"; font-weight: 700; font-display: swap; src: url("/fonts/manrope-latin-700-normal.woff") format("woff"); }
-@font-face { font-family: "Manrope"; font-weight: 400; font-display: swap; src: url("/fonts/manrope-latin-400-normal.woff") format("woff"); }
-@font-face { font-family: "DM Sans"; font-weight: 400; font-display: swap; src: url("/fonts/dm-sans-latin-400-normal.woff") format("woff"); }
-@font-face { font-family: "DM Sans"; font-weight: 700; font-display: swap; src: url("/fonts/dm-sans-latin-700-normal.woff") format("woff"); }
+@font-face { font-family: "Manrope"; font-weight: 700; font-display: swap; src: url("/dashboard/fonts/manrope-latin-700-normal.woff") format("woff"); }
+@font-face { font-family: "Manrope"; font-weight: 400; font-display: swap; src: url("/dashboard/fonts/manrope-latin-400-normal.woff") format("woff"); }
+@font-face { font-family: "DM Sans"; font-weight: 400; font-display: swap; src: url("/dashboard/fonts/dm-sans-latin-400-normal.woff") format("woff"); }
+@font-face { font-family: "DM Sans"; font-weight: 700; font-display: swap; src: url("/dashboard/fonts/dm-sans-latin-700-normal.woff") format("woff"); }
 
 @theme {
   --color-navy: #10243d;

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Dependency-free static production builder for Esicom Suppliers."""
 from pathlib import Path
-import json, os, shutil, re, sys
+import json, os, shutil, re, subprocess, sys
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent
@@ -1053,6 +1053,21 @@ def page_html(path,data):
         business_data='<script type="application/ld+json">'+json.dumps(business,ensure_ascii=False,separators=(',',':'))+'</script>'
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="{NAVY}"><meta name="description" content="{desc}"><meta property="og:type" content="website"><meta property="og:site_name" content="Esicom Suppliers"><meta property="og:title" content="{esc(title)}"><meta property="og:description" content="{desc}">{social_url}{canonical}<title>{esc(title)}</title><link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml"><link rel="icon" href="/favicon.ico?v=2" sizes="any"><link rel="icon" href="/images/brand/esicom-logo.png?v=2" type="image/png" sizes="512x512"><link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2"><link rel="stylesheet" href="/styles.css?v=6"><script src="/site-config.js?v=3"></script>{business_data}</head><body>{header(path)}{content}{footer()}</body></html>'''
 
+def build_dashboard():
+    """The staff ledger dashboard (React, ../dashboard) is served from this site at /dashboard/."""
+    dash = ROOT.parent / 'dashboard'
+    npm = shutil.which('npm')
+    if not npm:
+        if os.environ.get('VERCEL'):
+            raise SystemExit('BUILD FAILED: npm is needed to build the dashboard')
+        print('Skipping the dashboard: npm is not installed on this machine.')
+        return
+    subprocess.run([npm, 'ci', '--no-audit', '--no-fund'], cwd=dash, check=True)
+    subprocess.run([npm, 'run', 'build'], cwd=dash, check=True)
+    shutil.copytree(dash / 'dist', DIST / 'dashboard')
+    if not (DIST / 'dashboard' / 'index.html').is_file():
+        raise SystemExit('BUILD FAILED: the dashboard build produced no index.html')
+
 def main():
     global SITE_ORIGIN
     SITE_ORIGIN=os.environ.get('ESICOM_PUBLIC_SITE_URL','').strip().rstrip('/')
@@ -1113,6 +1128,7 @@ def main():
             raise SystemExit(f'BUILD FAILED: CMS page or hero-image wiring missing from {p.relative_to(DIST)}')
         if PAGES[path]['kind']=='home' and 'data-featured-products' not in txt:
             raise SystemExit('BUILD FAILED: homepage product listing is not CMS-ready')
+    build_dashboard()
     print(f'BUILD OK: {len(list(DIST.rglob("index.html")))} HTML pages and locally stored photography written to {DIST}')
 
 if __name__=='__main__': main()

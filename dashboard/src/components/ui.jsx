@@ -273,6 +273,9 @@ export function Table({ head, children, empty }) {
   )
 }
 
+// Public files (logo, photos) live under the app's base path, /dashboard/.
+export const asset = (path) => import.meta.env.BASE_URL + path
+
 export function dateText(value) {
   if (!value) return ''
   const d = new Date(value.length === 10 ? value + 'T00:00:00' : value)

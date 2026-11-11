@@ -1,28 +1,40 @@
 {
   "rewrites": [
     {
+      "source": "/ledger-api/:path*",
+      "destination": "https://esicom-backend.onrender.com/api/ledger/:path*"
+    },
+    {
       "source": "/upload",
-      "destination": "https://esicom-suppliers.onrender.com/upload/"
+      "destination": "https://esicom-backend.onrender.com/upload/"
     },
     {
       "source": "/upload/",
-      "destination": "https://esicom-suppliers.onrender.com/upload/"
+      "destination": "https://esicom-backend.onrender.com/upload/"
     },
     {
       "source": "/api/:path*",
-      "destination": "https://esicom-suppliers.onrender.com/api/:path*"
+      "destination": "https://esicom-backend.onrender.com/api/:path*"
     },
     {
       "source": "/admin/:path*",
-      "destination": "https://esicom-suppliers.onrender.com/admin/:path*"
+      "destination": "https://esicom-backend.onrender.com/admin/:path*"
     },
     {
       "source": "/static/:path*",
-      "destination": "https://esicom-suppliers.onrender.com/static/:path*"
+      "destination": "https://esicom-backend.onrender.com/static/:path*"
     },
     {
       "source": "/media/:path*",
-      "destination": "https://esicom-suppliers.onrender.com/media/:path*"
+      "destination": "https://esicom-backend.onrender.com/media/:path*"
+    },
+    {
+      "source": "/dashboard",
+      "destination": "/dashboard/index.html"
+    },
+    {
+      "source": "/dashboard/:path*",
+      "destination": "/dashboard/index.html"
     }
   ],
   "headers": [

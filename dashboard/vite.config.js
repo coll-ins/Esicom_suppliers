@@ -5,6 +5,8 @@ import tailwindcss from '@tailwindcss/vite'
 // In development, /ledger-api goes to the local Django server. In production the
 // Vercel rewrite in vercel.json does the same job, so cookies stay first-party.
 export default defineConfig({
+  // Served from the website's Vercel project at /dashboard/.
+  base: '/dashboard/',
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,

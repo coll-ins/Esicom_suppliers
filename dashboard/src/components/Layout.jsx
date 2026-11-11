@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../lib/auth'
+import { asset } from './ui'
 import { Icon } from './icons'
 
 const NAV = [
@@ -76,7 +77,7 @@ export default function Layout() {
 
       <header className="no-print sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-white/95 px-4 py-2 backdrop-blur lg:hidden">
         <div className="flex items-center gap-2.5">
-          <img src="/images/logo.png" alt="" className="size-9" />
+          <img src={asset('images/logo.png')} alt="" className="size-9" />
           <span className="font-display text-[16px] font-bold">Esicom ledger</span>
         </div>
         <button type="button" onClick={() => setOpen(true)} className="grid size-11 place-items-center rounded-md hover:bg-pale" aria-label="Open menu">
@@ -128,7 +129,7 @@ export default function Layout() {
 function Brand() {
   return (
     <div className="flex items-center gap-3 px-1">
-      <img src="/images/logo.png" alt="" className="size-10" />
+      <img src={asset('images/logo.png')} alt="" className="size-10" />
       <div className="leading-tight">
         <div className="font-display text-[16px] font-bold">Esicom Suppliers</div>
         <div className="text-[13px] text-white/65">Ledger</div>

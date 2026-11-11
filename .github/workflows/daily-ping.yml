@@ -12,4 +12,4 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Ping backend health
-        run: curl -fsS --retry 6 --retry-delay 30 --retry-all-errors --max-time 90 https://esicom-suppliers.onrender.com/api/health/
+        run: curl -fsS --retry 6 --retry-delay 30 --retry-all-errors --max-time 90 https://esicom-backend.onrender.com/api/health/

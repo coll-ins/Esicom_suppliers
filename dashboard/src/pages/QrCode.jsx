@@ -1,4 +1,4 @@
-import { Button, ErrorBox, Loading, PageHeader, useLoad } from '../components/ui'
+import { Button, ErrorBox, Loading, PageHeader, asset, useLoad } from '../components/ui'
 import { get, qrUrl } from '../lib/api'
 
 export default function QrCode() {
@@ -12,7 +12,7 @@ export default function QrCode() {
       {!info && !error ? <Loading /> : null}
       {info ? (
         <div className="print-area mx-auto grid max-w-md justify-items-center gap-4 rounded-[var(--radius-card)] border border-line bg-white p-8 text-center">
-          <img src="/images/logo.png" alt="" className="size-14" />
+          <img src={asset('images/logo.png')} alt="" className="size-14" />
           <h2 className="text-[24px]">Send us your file</h2>
           <p className="m-0 text-muted">Scan with your phone camera, choose the file, press Send.</p>
           <img src={qrUrl()} alt={`QR code for ${info.url}`} className="size-72 [image-rendering:pixelated]" />

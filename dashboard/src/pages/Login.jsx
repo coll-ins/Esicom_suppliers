@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, ErrorBox, Field, Input, Notice } from '../components/ui'
+import { Button, ErrorBox, Field, Input, Notice, asset } from '../components/ui'
 import { post } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
@@ -29,10 +29,10 @@ export default function Login() {
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[minmax(0,1fr)_520px]">
-      <div className="h-44 bg-[url(/images/login.webp)] bg-cover bg-center sm:h-64 lg:h-auto" role="img" aria-label="Esicom office supplies" />
+      <div className="h-44 bg-cover bg-center sm:h-64 lg:h-auto" style={{ backgroundImage: `url(${asset('images/login.webp')})` }} role="img" aria-label="Esicom office supplies" />
       <main className="mx-auto grid w-full max-w-[520px] content-center gap-6 px-4 py-8 sm:px-8 lg:px-12">
         <div className="flex items-center gap-3">
-          <img src="/images/logo.png" alt="" className="size-12" />
+          <img src={asset('images/logo.png')} alt="" className="size-12" />
           <div>
             <div className="font-display text-[18px] font-bold">Esicom Suppliers</div>
             <div className="text-muted">Ledger: sales, invoices and stock</div>

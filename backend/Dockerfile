@@ -18,7 +18,7 @@ COPY . .
 # collectstatic never connects to a database. Real values come from Render's environment.
 RUN DJANGO_SECRET_KEY=build-only-not-a-secret-build-only-not-a-secret-build-only \
     DATABASE_URL=postgres://build:build@localhost:5432/build \
-    ESICOM_PUBLIC_SITE_URL=https://example.invalid \
+    ESICOM_PUBLIC_SITE_URL=https://example.invalid DJANGO_ALLOWED_HOSTS=localhost \
     python manage.py collectstatic --noinput
 
 RUN useradd --create-home app && mkdir -p /var/data /app/media && chown app /var/data /app/media
