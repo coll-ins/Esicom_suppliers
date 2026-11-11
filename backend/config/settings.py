@@ -1,4 +1,5 @@
 ﻿import os
+from urllib.parse import urlsplit
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -8,7 +9,7 @@ ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.
 INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
     'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
-    'corsheaders', 'quotes',
+    'corsheaders', 'rest_framework', 'quotes', 'ledger',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -19,6 +20,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'ledger.middleware.DailyJobsMiddleware',
 ]
 if not DEBUG:
     MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
@@ -47,7 +49,11 @@ REDIS_URL = os.environ.get('REDIS_URL', '').strip()
 if REDIS_URL:
     CACHES = {'default': {'BACKEND': 'django.core.cache.backends.redis.RedisCache', 'LOCATION': REDIS_URL}}
 else:
-    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'esicom-local-cache'}}
+    # Production without Redis: a database cache, so rate limits are shared by every worker.
+    CACHES = {'default': (
+        {'BACKEND': 'django.core.cache.backends.db.DatabaseCache', 'LOCATION': 'esicom_cache'} if not DEBUG
+        else {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'esicom-local-cache'}
+    )}
 
 if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -90,9 +96,12 @@ EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'true').lower() == 'true'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+# Never let a slow or blocked mail server hang a request (Render's free plan blocks SMTP ports).
+EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'website@localhost')
 ESICOM_ENQUIRY_EMAIL = os.environ.get('ESICOM_ENQUIRY_EMAIL', 'esicomsuppliers@gmail.com')
 ESICOM_PUBLIC_SITE_URL = os.environ.get('ESICOM_PUBLIC_SITE_URL', 'http://localhost:4173').rstrip('/')
+ESICOM_DASHBOARD_URL = os.environ.get('ESICOM_DASHBOARD_URL', 'http://localhost:5173').rstrip('/')
 ESICOM_EDITOR_PREVIEW_URL = os.environ.get(
     'ESICOM_EDITOR_PREVIEW_URL',
     ESICOM_PUBLIC_SITE_URL if not DEBUG else 'http://127.0.0.1:4174',
@@ -105,6 +114,24 @@ if not DEBUG and not ESICOM_PUBLIC_SITE_URL.startswith('https://'):
 
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
+for _url in (ESICOM_DASHBOARD_URL, ESICOM_PUBLIC_SITE_URL):
+    _origin = '{0.scheme}://{0.netloc}'.format(urlsplit(_url))  # CSRF compares origins, never paths
+    if _origin.startswith('https://') and _origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_origin)
+
+# Ledger dashboard. It reaches this API through a Vercel rewrite (/ledger-api/* -> /api/ledger/*),
+# so the session cookie is first-party. Add the dashboard origin to DJANGO_CSRF_TRUSTED_ORIGINS.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': ['ledger.auth.LedgerSessionAuthentication'],
+    'DEFAULT_PERMISSION_CLASSES': ['ledger.auth.IsLedgerUser'],
+    'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
+    'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
+    'UNAUTHENTICATED_USER': 'django.contrib.auth.models.AnonymousUser',
+}
+# Stay logged in until "Log out" (or "Log out everywhere"); 5 years is the practical maximum.
+SESSION_COOKIE_AGE = 5 * 365 * 24 * 3600
+SESSION_COOKIE_SAMESITE = 'Lax'
+LEDGER_RUN_DAILY_JOBS = os.environ.get('LEDGER_RUN_DAILY_JOBS', 'true').lower() == 'true'
 
 if os.environ.get('CLOUDINARY_URL'):
     INSTALLED_APPS = list(INSTALLED_APPS) + ['cloudinary_storage', 'cloudinary']

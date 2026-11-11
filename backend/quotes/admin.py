@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from .models import CatalogItem, FileSubmission, PageContent, PageSection, QuoteRequest, SitePhoto
+from .models import FileSubmission, PageContent, PageSection, QuoteRequest, SitePhoto
 
 admin.site.site_header = 'Esicom Suppliers — Website Editor'
 admin.site.site_title = 'Esicom Website Editor'
@@ -64,25 +64,6 @@ class PageContentAdmin(admin.ModelAdmin):
     def delete_queryset(self, request, queryset):
         for page in queryset:
             page.delete()
-
-
-@admin.register(CatalogItem)
-class CatalogItemAdmin(admin.ModelAdmin):
-    list_display = ('name', 'page', 'is_featured', 'is_published', 'display_order', 'updated_at')
-    list_filter = ('page', 'is_featured', 'is_published')
-    search_fields = ('name', 'description', 'slug')
-    list_editable = ('is_featured', 'is_published', 'display_order')
-    prepopulated_fields = {'slug': ('name',)}
-    readonly_fields = ('updated_at',)
-    fieldsets = (
-        ('Product details', {'fields': ('name', 'slug', 'page', 'description', 'image')}),
-        ('Website placement', {'fields': ('is_featured', 'is_published', 'display_order')}),
-        ('Last updated', {'fields': ('updated_at',)}),
-    )
-
-    def delete_queryset(self, request, queryset):
-        for item in queryset:
-            item.delete()
 
 
 @admin.register(QuoteRequest)

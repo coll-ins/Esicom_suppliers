@@ -1,0 +1,56 @@
+{% extends "ledger/_frame.html" %}
+{% block doc_title %}{{ title }} {{ number }}{% endblock %}
+{% block content %}
+<div class="stamp-wrap">
+  {% if stamp %}<div class="stamp{% if stamp == 'VOID' %} void{% endif %}">{{ stamp }}</div>{% endif %}
+  <table class="top">
+    <tr>
+      <td>
+        <h1 class="title">{{ title }}</h1>
+        <table class="meta">
+          {% for label, value in meta %}<tr><td class="k">{{ label }}:</td><td class="v">{{ value }}</td></tr>{% endfor %}
+        </table>
+      </td>
+      <td style="width:76mm">
+        <div class="billto">
+          <h3>Bill to</h3>
+          <div>{{ bill_to.name }}</div>
+          {% if bill_to.address %}<div>{{ bill_to.address }}</div>{% endif %}
+          {% if bill_to.phone %}<div>{{ bill_to.phone }}</div>{% endif %}
+          {% if bill_to.email %}<div>{{ bill_to.email }}</div>{% endif %}
+          {% if bill_to.kra_pin %}<div>KRA PIN: {{ bill_to.kra_pin }}</div>{% endif %}
+        </div>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<table class="items">
+  <thead>
+    <tr><th class="n">#</th><th>Item description</th><th class="r">Qty</th><th class="r">Unit price (KES)</th><th class="r">Total (KES)</th></tr>
+  </thead>
+  <tbody>
+    {% for row in rows %}
+    <tr><td class="n">{{ row.n }}</td><td>{{ row.description }}</td><td class="r">{{ row.qty }}</td><td class="r">{{ row.unit_price }}</td><td class="r">{{ row.amount }}</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<table class="bottom">
+  <tr>
+    <td><div class="notes">
+      <h3>For any inquiries</h3>
+      <p>Contact us on 0728 942 669 or email esicomsuppliers@gmail.com.</p>
+      <p class="thanks">Thank you for your business.</p>
+    </div></td>
+    <td style="width:82mm">
+      <table class="totals">
+        <tr class="line"><td>Subtotal (KES)</td><td class="r">{{ subtotal }}</td></tr>
+        {% if show_vat %}<tr class="line"><td>VAT ({{ vat_percent }}%)</td><td class="r">{{ vat }}</td></tr>{% endif %}
+        {% if doc_total_row %}<tr class="line"><td>Invoice total (KES)</td><td class="r">{{ total }}</td></tr>{% endif %}
+        <tr class="band"><td>{{ band_label }}</td><td class="r">{{ band_total }}</td></tr>
+      </table>
+    </td>
+  </tr>
+</table>
+{% endblock %}

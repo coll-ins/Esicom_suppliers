@@ -10,7 +10,7 @@ from django.core import mail
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.contrib.auth import get_user_model
-from .models import CatalogItem, FileSubmission, PageContent, PageSection, QuoteRequest, SitePhoto, VisualEdit
+from .models import FileSubmission, PageContent, PageSection, QuoteRequest, SitePhoto, VisualEdit
 
 
 class QuoteAPITests(TestCase):
@@ -44,7 +44,7 @@ class QuoteAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['pages']['home']['title'], 'Everything your office')
         self.assertIn('office-supplies', response.json()['pages'])
-        self.assertEqual(response.json()['products'], [])
+        self.assertNotIn('products', response.json())
         self.assertEqual(response.json()['sections'], [])
         self.assertEqual(response.json()['photos'], {})
 
@@ -78,25 +78,6 @@ class QuoteAPITests(TestCase):
         PageContent.objects.filter(page='home').update(is_published=False)
         response = self.client.get('/api/site-content/')
         self.assertNotIn('home', response.json()['pages'])
-
-    def test_only_published_catalog_items_are_public(self):
-        CatalogItem.objects.create(
-            page='office-supplies',
-            name='Box of pens',
-            description='Packaged pens for your team.',
-            image='catalog/box-of-pens.webp',
-        )
-        CatalogItem.objects.create(
-            page='office-supplies',
-            name='Draft item',
-            description='Not ready to publish.',
-            image='catalog/draft.webp',
-            is_published=False,
-        )
-        response = self.client.get('/api/site-content/')
-        self.assertEqual(len(response.json()['products']), 1)
-        self.assertEqual(response.json()['products'][0]['name'], 'Box of pens')
-        self.assertTrue(response.json()['products'][0]['image'].endswith('/media/catalog/box-of-pens.webp'))
 
     def test_site_content_is_read_only(self):
         response = self.client.post('/api/site-content/', data='{}', content_type='application/json')
@@ -227,11 +208,6 @@ class QuoteAPITests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(VisualEdit.objects.count(), 0)
 
-    def test_catalog_admin_requires_authentication(self):
-        response = self.client.get('/admin/quotes/catalogitem/')
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/admin/login/', response.headers['Location'])
-
     def test_valid_quote_is_saved(self):
         payload = {
             'name': 'Test Customer',
@@ -303,120 +279,102 @@ class FileSubmissionAPITests(TestCase):
         pdf.close()
         return SimpleUploadedFile(name, data, content_type='application/pdf')
 
-    def test_upload_is_saved_and_available_from_private_download_link(self):
-        response = self.client.post('/api/file-submissions/', {'file': self.png_file(), 'delivery_consent': 'on'})
-        self.assertEqual(response.status_code, 201)
-        self.assertTrue(response.json()['ok'])
+    @staticmethod
+    def docx_file(name='brief.docx'):
+        import docx
+        document = docx.Document()
+        document.add_heading('Esicom test brief', 1)
+        document.add_paragraph('Print 200 copies.')
+        data = BytesIO()
+        document.save(data)
+        return SimpleUploadedFile(name, data.getvalue())
+
+    def test_upload_page_is_public_and_upload_only(self):
+        response = self.client.get('/upload/')
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertIn('data-upload-form', html)
+        self.assertIn('50 MB', html)
+        self.assertNotIn('catalogue', html.lower())
+
+    def test_upload_is_saved_private_and_emailed_to_esicom(self):
+        response = self.client.post('/api/file-submissions/', {'file': self.png_file(), 'name': 'Jane', 'phone': '0712345678'})
+        self.assertEqual(response.status_code, 201, response.content)
+        self.assertTrue(response.json()['reference'].startswith('ES-F'))
         submission = FileSubmission.objects.get()
         self.assertTrue(submission.uploaded_file.name.startswith('private/file-submissions/'))
         self.assertEqual(self.client.get(submission.uploaded_file.url).status_code, 404)
-        download = self.client.get(response.json()['download_url'])
-        self.assertEqual(download.status_code, 200)
-        self.assertIn('attachment;', download['Content-Disposition'])
-        download.close()
-
-    def test_email_delivery_attaches_the_uploaded_file(self):
-        response = self.client.post('/api/file-submissions/', {'file': self.png_file(), 'delivery_consent': 'on'})
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()['delivery'], 'email')
-        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(submission.phone, '0712 345 678')
         self.assertEqual(mail.outbox[0].to, ['esicomsuppliers@gmail.com'])
-        self.assertEqual(len(mail.outbox[0].attachments), 1)
-        attachment_name, attachment_data, content_type = mail.outbox[0].attachments[0]
-        self.assertEqual(attachment_name, 'artwork.png')
-        self.assertTrue(attachment_data.startswith(b'\x89PNG'))
-        self.assertIn('is attached', mail.outbox[0].body)
-        self.assertTrue(FileSubmission.objects.get().delivery_consent)
+        name, data, _ = mail.outbox[0].attachments[0]
+        self.assertEqual(name, 'artwork.png')
+        self.assertTrue(data.startswith(b'\x89PNG'))
+        self.assertIn('/uploads', mail.outbox[0].body)
 
-    def test_email_delivery_fails_explicitly_when_only_console_email_is_configured(self):
-        with override_settings(EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend'):
-            response = self.client.post('/api/file-submissions/', {
-                'file': self.png_file(),
-                'delivery_consent': 'on',
-            })
-        self.assertEqual(response.status_code, 503)
-        self.assertTrue(response.json()['saved'])
-        self.assertIn('email is not configured', response.json()['detail'])
+    def test_public_download_link_and_qr_are_gone(self):
+        submission = FileSubmission.objects.create(original_filename='a.png', uploaded_file=self.png_file())
+        self.assertEqual(self.client.get(f'/api/file-submissions/{submission.download_token}/download/').status_code, 404)
+        self.assertEqual(self.client.get('/api/file-upload-qr/').status_code, 404)
+
+    def test_email_failure_still_keeps_the_file(self):
+        with override_settings(EMAIL_BACKEND='quotes.tests.FailingBackend'):
+            response = self.client.post('/api/file-submissions/', {'file': self.png_file()})
+        self.assertEqual(response.status_code, 201)
         self.assertEqual(FileSubmission.objects.count(), 1)
 
-    def test_submission_requires_delivery_consent(self):
-        response = self.client.post('/api/file-submissions/', {'file': self.png_file()})
+    def test_large_file_is_saved_but_not_attached(self):
+        big = SimpleUploadedFile('large.pdf', b'%PDF-' + b'x' * (15 * 1024 * 1024))
+        response = self.client.post('/api/file-submissions/', {'file': big})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(mail.outbox[0].attachments, [])
+        self.assertIn('too large to attach', mail.outbox[0].body)
+
+    def test_too_large_file_rejected_with_reason(self):
+        huge = SimpleUploadedFile('huge.pdf', b'%PDF-' + b'x' * (50 * 1024 * 1024))
+        response = self.client.post('/api/file-submissions/', {'file': huge})
         self.assertEqual(response.status_code, 400)
+        self.assertIn('50 MB or smaller', response.json()['detail'])
+
+    def test_unsupported_type_rejected_with_reason(self):
+        response = self.client.post('/api/file-submissions/', {'file': SimpleUploadedFile('virus.exe', b'MZ')})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('PDF, a Word file', response.json()['detail'])
         self.assertEqual(FileSubmission.objects.count(), 0)
 
-    def test_whatsapp_delivery_does_not_send_an_email(self):
-        response = self.client.post('/api/file-submissions/', {
-            'file': self.png_file(),
-            'delivery': 'whatsapp',
-            'delivery_consent': 'on',
-        })
-        self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.json()['delivery'], 'whatsapp')
-        self.assertEqual(mail.outbox, [])
-        self.assertEqual(FileSubmission.objects.get().delivery_method, 'whatsapp')
+    def test_fake_word_file_rejected(self):
+        response = self.client.post('/api/file-submissions/', {'file': SimpleUploadedFile('x.docx', b'not a zip')})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('not a valid Word document', response.json()['detail'])
 
-    def test_email_attachment_size_limit_directs_large_files_to_whatsapp(self):
-        response = self.client.post('/api/file-submissions/', {
-            'file': SimpleUploadedFile('large.pdf', b'x' * (15 * 1024 * 1024 + 1)),
-            'delivery': 'email',
-            'delivery_consent': 'on',
-        })
-        self.assertEqual(response.status_code, 413)
-        self.assertIn('Choose WhatsApp', response.json()['detail'])
-        self.assertEqual(FileSubmission.objects.count(), 0)
-
-    def test_image_can_be_converted_and_downloaded(self):
-        response = self.client.post('/api/file-submissions/', {
-            'file': self.png_file(),
-            'conversion': 'webp',
-            'delivery_consent': 'on',
-        })
-        self.assertEqual(response.status_code, 201)
-        self.assertTrue(response.json()['converted'])
-        self.assertTrue(response.json()['filename'].endswith('-converted.webp'))
-        submission = FileSubmission.objects.get()
-        self.assertTrue(submission.converted_file)
-        download = self.client.get(response.json()['download_url'])
-        self.assertEqual(download.status_code, 200)
-        download.close()
+    def test_bad_phone_rejected(self):
+        response = self.client.post('/api/file-submissions/', {'file': self.png_file(), 'phone': '12345'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('07, 01 or +254', response.json()['detail'])
 
     def test_pdf_can_be_converted_to_word(self):
-        response = self.client.post('/api/file-submissions/', {
-            'file': self.pdf_file(),
-            'conversion': 'docx',
-            'delivery_consent': 'on',
-        })
+        response = self.client.post('/api/file-submissions/', {'file': self.pdf_file(), 'conversion': 'docx'})
         self.assertEqual(response.status_code, 201, response.content)
         self.assertTrue(response.json()['filename'].endswith('-converted.docx'))
         self.assertEqual(mail.outbox[-1].attachments[0][0], 'brief-converted.docx')
-        download = self.client.get(response.json()['download_url'])
-        self.assertEqual(download.status_code, 200)
-        download.close()
+
+    def test_word_can_be_converted_to_pdf(self):
+        response = self.client.post('/api/file-submissions/', {'file': self.docx_file(), 'conversion': 'pdf'})
+        self.assertEqual(response.status_code, 201, response.content)
+        name, data, _ = mail.outbox[-1].attachments[0]
+        self.assertEqual(name, 'brief-converted.pdf')
+        self.assertTrue(data.startswith(b'%PDF'))
+        text = '\n'.join(page.get_text() for page in fitz.open(stream=data, filetype='pdf'))
+        self.assertIn('Print 200 copies', text)
 
     def test_file_type_must_match_actual_image_content(self):
-        response = self.client.post('/api/file-submissions/', {
-            'file': SimpleUploadedFile('fake.jpg', b'%PDF-not-a-jpeg'),
-            'delivery_consent': 'on',
-        })
+        response = self.client.post('/api/file-submissions/', {'file': SimpleUploadedFile('fake.jpg', b'%PDF-not-a-jpeg')})
         self.assertEqual(response.status_code, 400)
         self.assertEqual(FileSubmission.objects.count(), 0)
 
-    def test_conversion_must_be_supported_for_the_uploaded_file(self):
-        response = self.client.post('/api/file-submissions/', {
-            'file': self.pdf_file(),
-            'conversion': 'webp',
-            'delivery_consent': 'on',
-        })
+    def test_conversion_must_fit_the_file(self):
+        response = self.client.post('/api/file-submissions/', {'file': self.png_file(), 'conversion': 'pdf'})
         self.assertEqual(response.status_code, 400)
-
-    def test_download_link_remains_available_until_submission_is_deleted(self):
-        submission = FileSubmission.objects.create(
-            original_filename='artwork.png',
-            uploaded_file=self.png_file(),
-        )
-        response = self.client.get(f'/api/file-submissions/{submission.download_token}/download/')
-        self.assertEqual(response.status_code, 200)
-        response.close()
+        self.assertIn('PDF can become Word', response.json()['detail'])
 
     def test_staff_deletion_removes_original_and_converted_files(self):
         submission = FileSubmission.objects.create(
@@ -440,12 +398,6 @@ class FileSubmissionAPITests(TestCase):
         self.assertFalse(submission.converted_file.storage.exists(converted_name))
         self.assertEqual(self.client.get(url).status_code, 404)
 
-    def test_qr_endpoint_returns_png(self):
-        response = self.client.get('/api/file-upload-qr/')
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], 'image/png')
-        self.assertTrue(response.content.startswith(b'\x89PNG\r\n\x1a\n'))
-
     def test_admin_can_download_private_upload_only_after_login(self):
         submission = FileSubmission.objects.create(
             original_filename='artwork.png',
@@ -467,13 +419,39 @@ class FileSubmissionAPITests(TestCase):
         for _ in range(200):
             response = self.client.post(
                 '/api/file-submissions/',
-                {'file': SimpleUploadedFile('unsupported.txt', b'not a supported file'), 'delivery_consent': 'on'},
+                {'file': SimpleUploadedFile('unsupported.txt', b'not a supported file')},
                 HTTP_X_FORWARDED_FOR='198.51.100.10, 203.0.113.17',
             )
             self.assertEqual(response.status_code, 400)
         response = self.client.post(
             '/api/file-submissions/',
-            {'file': self.png_file(), 'delivery_consent': 'on'},
+            {'file': self.png_file()},
             HTTP_X_FORWARDED_FOR='198.51.100.10, 203.0.113.17',
         )
         self.assertEqual(response.status_code, 429)
+
+
+class FailingBackend:
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def send_messages(self, messages):
+        raise ConnectionError('SMTP down')
+
+
+class ConversionLimitTests(TestCase):
+    def test_word_zip_bomb_is_refused_quickly(self):
+        import time
+        import zipfile
+
+        data = BytesIO()
+        with zipfile.ZipFile(data, 'w', zipfile.ZIP_DEFLATED) as z:
+            z.writestr('word/document.xml', b'<w:document>' + b'A' * (210 * 1024 * 1024) + b'</w:document>')
+        upload = SimpleUploadedFile('bomb.docx', data.getvalue())
+        self.assertLess(len(data.getvalue()), 2 * 1024 * 1024)
+        start = time.monotonic()
+        with TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            response = self.client.post('/api/file-submissions/', {'file': upload, 'conversion': 'pdf'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('too large inside', response.json()['detail'])
+        self.assertLess(time.monotonic() - start, 10)

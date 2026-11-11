@@ -1,16 +1,15 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 from quotes.views import (
     create_file_submission,
     create_page_section,
     create_quote,
-    download_file_submission,
     download_submission_attachment,
-    file_upload_qr,
     health,
     private_media_not_found,
     public_media,
     site_content,
+    upload_page,
     visual_edit_api,
     visual_editor,
 )
@@ -21,10 +20,10 @@ urlpatterns = [
     ), name='file_submission_attachment'),
     path('admin/visual-editor/', visual_editor, name='visual_editor'),
     path('admin/', admin.site.urls),
+    path('upload/', upload_page, name='upload_page'),
+    path('api/ledger/', include('ledger.urls')),
     path('api/quote/', create_quote, name='create_quote'),
     path('api/file-submissions/', create_file_submission, name='create_file_submission'),
-    path('api/file-submissions/<uuid:token>/download/', download_file_submission, name='download_file_submission'),
-    path('api/file-upload-qr/', file_upload_qr, name='file_upload_qr'),
     path('api/health/', health, name='health'),
     path('api/page-sections/<str:page>/', create_page_section, name='create_page_section'),
     path('api/site-content/', site_content, name='site_content'),

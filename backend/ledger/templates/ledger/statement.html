@@ -1,0 +1,58 @@
+{% extends "ledger/_frame.html" %}
+{% block doc_title %}Statement {{ bill_to.name }}{% endblock %}
+{% block extra_css %}
+.items td.d { white-space: nowrap; width: 24mm; }
+.items .muted td { color: #65768a; }
+.after { margin-top: 3mm; color: #65768a; }
+{% endblock %}
+{% block content %}
+<table class="top">
+  <tr>
+    <td>
+      <h1 class="title">{{ title }}</h1>
+      <table class="meta">
+        {% for label, value in meta %}<tr><td class="k">{{ label }}:</td><td class="v">{{ value }}</td></tr>{% endfor %}
+      </table>
+    </td>
+    <td style="width:76mm">
+      <div class="billto">
+        <h3>Customer</h3>
+        <div>{{ bill_to.name }}</div>
+        {% if bill_to.address %}<div>{{ bill_to.address }}</div>{% endif %}
+        {% if bill_to.phone %}<div>{{ bill_to.phone }}</div>{% endif %}
+        {% if bill_to.email %}<div>{{ bill_to.email }}</div>{% endif %}
+      </div>
+    </td>
+  </tr>
+</table>
+
+<table class="items">
+  <thead>
+    <tr><th>Date</th><th>Reference</th><th>Details</th><th class="r">Charged (KES)</th><th class="r">Paid (KES)</th><th class="r">Balance (KES)</th></tr>
+  </thead>
+  <tbody>
+    <tr class="muted"><td class="d"></td><td></td><td>Balance brought forward</td><td></td><td></td><td class="r">{{ opening }}</td></tr>
+    {% for row in rows %}
+    <tr><td class="d">{{ row.date }}</td><td>{{ row.ref }}</td><td>{{ row.details }}</td><td class="r">{{ row.charged }}</td><td class="r">{{ row.paid }}</td><td class="r">{{ row.balance }}</td></tr>
+    {% empty %}
+    <tr class="muted"><td></td><td></td><td>No activity in this period.</td><td></td><td></td><td></td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<table class="bottom">
+  <tr>
+    <td><div class="notes">
+      <h3>For any inquiries</h3>
+      <p>Contact us on 0728 942 669 or email esicomsuppliers@gmail.com.</p>
+      <p class="thanks">Thank you for your business.</p>
+    </div></td>
+    <td style="width:82mm">
+      <table class="totals">
+        <tr class="band"><td>{{ closing_label }}</td><td class="r">{{ closing_value }}</td></tr>
+      </table>
+      {% if unbilled %}<p class="after">Items on your tab not yet invoiced: KES {{ unbilled }}.</p>{% endif %}
+    </td>
+  </tr>
+</table>
+{% endblock %}

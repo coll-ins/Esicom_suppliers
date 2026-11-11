@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@font-face { font-family: "Manrope"; font-weight: 700; font-display: swap; src: url("/dashboard/fonts/manrope-latin-700-normal.woff") format("woff"); }
+@font-face { font-family: "Manrope"; font-weight: 400; font-display: swap; src: url("/dashboard/fonts/manrope-latin-400-normal.woff") format("woff"); }
+@font-face { font-family: "DM Sans"; font-weight: 400; font-display: swap; src: url("/dashboard/fonts/dm-sans-latin-400-normal.woff") format("woff"); }
+@font-face { font-family: "DM Sans"; font-weight: 700; font-display: swap; src: url("/dashboard/fonts/dm-sans-latin-700-normal.woff") format("woff"); }
+
+@theme {
+  --color-navy: #10243d;
+  --color-blue: #183f67;
+  --color-pale: #eaf1f8;
+  --color-paper: #f5f8fc;
+  --color-muted: #65768a;
+  --color-line: #dbe4ed;
+  --color-danger: #b3261e;
+  --color-danger-bg: #fbeceb;
+  --color-ok: #1d6b45;
+  --color-ok-bg: #e7f3ec;
+  --color-warn: #7a5200;
+  --color-warn-bg: #fdf3dc;
+  --font-display: "Manrope", system-ui, sans-serif;
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --radius-control: 8px;
+  --radius-card: 14px;
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-paper text-navy font-sans antialiased; font-size: 16px; line-height: 1.5; }
+  h1, h2, h3 { @apply font-display font-bold; text-wrap: balance; }
+  ::selection { background: var(--color-pale); }
+  input, textarea, select { caret-color: var(--color-blue); }
+  a { text-underline-offset: 3px; }
+  :focus-visible { outline: 3px solid rgb(24 63 103 / 0.4); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+}
+
+@utility tnum { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; animation: none !important; }
+}
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+  .print-area { box-shadow: none !important; border: 0 !important; }
+}
