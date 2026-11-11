@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-
 MAX_PDF_PAGES = 1000
 MAX_DOCX_BYTES = 30 * 1024 * 1024
 MAX_DOCX_UNPACKED = 60 * 1024 * 1024  # stops "zip bombs": small files that unpack to gigabytes
