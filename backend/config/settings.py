@@ -37,6 +37,12 @@ if DATABASE_URL.startswith(('postgres://', 'postgresql://')):
 else:
     DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
 
+# Only while moving to a new database: `manage.py move_database` copies everything into it.
+NEON_DATABASE_URL = os.environ.get('NEON_DATABASE_URL', '').strip()
+if NEON_DATABASE_URL.startswith(('postgres://', 'postgresql://')):
+    import dj_database_url
+    DATABASES['neon'] = dj_database_url.parse(NEON_DATABASE_URL, ssl_require=True)
+
 if not DEBUG:
     if SECRET_KEY == 'dev-only-change-this-before-deployment' or len(SECRET_KEY) < 50:
         raise ImproperlyConfigured('Set a unique DJANGO_SECRET_KEY of at least 50 characters in production.')
@@ -98,6 +104,12 @@ EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 # Never let a slow or blocked mail server hang a request (Render's free plan blocks SMTP ports).
 EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
+# Gmail API over HTTPS (Render's free plan blocks SMTP). Used whenever all three are set.
+GMAIL_CLIENT_ID = os.environ.get('GMAIL_CLIENT_ID', '').strip()
+GMAIL_CLIENT_SECRET = os.environ.get('GMAIL_CLIENT_SECRET', '').strip()
+GMAIL_REFRESH_TOKEN = os.environ.get('GMAIL_REFRESH_TOKEN', '').strip()
+if GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN:
+    EMAIL_BACKEND = 'ledger.gmail_backend.GmailApiBackend'
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'website@localhost')
 ESICOM_ENQUIRY_EMAIL = os.environ.get('ESICOM_ENQUIRY_EMAIL', 'esicomsuppliers@gmail.com')
 ESICOM_PUBLIC_SITE_URL = os.environ.get('ESICOM_PUBLIC_SITE_URL', 'http://localhost:4173').rstrip('/')
