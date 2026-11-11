@@ -381,3 +381,10 @@ def test_customer_balances_take_constant_queries(owner, paper):
     with CaptureQueriesContext(connection) as ctx:
         services.balances_for(ids)
     assert len(ctx.captured_queries) <= 5
+
+
+def test_same_mpesa_code_cannot_be_recorded_twice(owner, customer, paper):
+    services.record_sale(owner, customer, [item(paper, 1)], payment={"amount": 754, "method": "mpesa", "reference": "TKB7XY12AB"})
+    with pytest.raises(LedgerError, match="already recorded"):
+        services.record_payment(owner, customer, amount=100, method="mpesa", reference="tkb7xy12ab", overpay="credit")
+    assert Document.objects.filter(doc_type="INV").count() == 1

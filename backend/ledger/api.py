@@ -1137,7 +1137,8 @@ def home(request):
     return Response(
         {
             "cash_collected": received.aggregate(s=Coalesce(Sum("amount"), 0))["s"] - refunds_today,
-            "collected_by_method": {
+            "refunds_today": refunds_today,
+        "collected_by_method": {
                 row["method"]: row["s"] for row in received.values("method").annotate(s=Sum("amount"))
             },
             "invoiced": Document.objects.filter(doc_type=DocType.INVOICE, void=False, issued_on=t).aggregate(

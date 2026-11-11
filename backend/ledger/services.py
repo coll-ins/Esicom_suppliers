@@ -458,6 +458,13 @@ def _record_payment(
 ):
     if overpay not in {"refund", "credit"}:
         raise LedgerError("Choose Refund or Keep as credit for the extra money.")
+    if method == Payment.Method.MPESA and reference:
+        dup = Payment.objects.filter(method=method, reference__iexact=reference, void=False).select_related("customer").first()
+        if dup:
+            raise LedgerError(
+                f"M-Pesa code {reference} was already recorded on {dup.received_on:%d %b %Y} for {dup.customer.name}. "
+                "Check the code; the same payment cannot be recorded twice."
+            )
     invoices = open_invoices(customer)
     if invoice_ids:
         invoices = invoices.filter(pk__in=invoice_ids)
