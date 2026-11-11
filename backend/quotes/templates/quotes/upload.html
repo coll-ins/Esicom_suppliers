@@ -1,0 +1,270 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#10243d">
+<title>Send a file to Esicom Suppliers</title>
+<style>
+@font-face { font-family: "Manrope"; font-weight: 700; font-display: swap; src: url("{% static 'ledger/fonts/manrope-latin-700-normal.woff' %}"); }
+@font-face { font-family: "DM Sans"; font-weight: 400; font-display: swap; src: url("{% static 'ledger/fonts/dm-sans-latin-400-normal.woff' %}"); }
+@font-face { font-family: "DM Sans"; font-weight: 700; font-display: swap; src: url("{% static 'ledger/fonts/dm-sans-latin-700-normal.woff' %}"); }
+:root {
+  --navy: #10243d; --blue: #183f67; --pale: #eaf1f8; --paper: #f5f8fc; --muted: #65768a; --line: #dbe4ed;
+  --error: #b3261e; --ok: #1d6b45;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--navy); font: 400 16px/1.5 "DM Sans", system-ui, sans-serif; }
+::selection { background: var(--pale); }
+h1, h2 { font-family: "Manrope", system-ui, sans-serif; font-weight: 700; text-wrap: balance; }
+a { color: var(--blue); text-underline-offset: 3px; }
+.top { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--line); }
+.top img { width: 40px; height: 40px; }
+.top strong { font-family: "Manrope", sans-serif; font-size: 16px; }
+.top span { display: block; color: var(--muted); font-size: 13px; }
+.photo { height: 168px; background: url("{% static 'ledger/upload-bg.webp' %}") center 60% / cover; }
+.layout { margin: 0 auto; }
+main { padding: 24px 16px 48px; }
+h1 { font-size: 28px; line-height: 1.15; letter-spacing: -0.02em; margin: 0 0 8px; }
+.lead { margin: 0 0 24px; color: var(--muted); max-width: 60ch; }
+form { display: grid; gap: 20px; }
+.field { display: grid; gap: 6px; }
+label, .label { font-weight: 700; font-size: 15px; }
+.hint { color: var(--muted); font-size: 14px; }
+.opt { color: var(--muted); font-weight: 400; }
+input[type=text], input[type=tel], textarea {
+  width: 100%; min-height: 48px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px;
+  background: #fff; color: var(--navy); font: inherit; caret-color: var(--blue);
+  transition: border-color 150ms var(--ease);
+}
+textarea { min-height: 96px; resize: vertical; }
+input:focus-visible, textarea:focus-visible, .drop:focus-within, .choice input:focus-visible + span {
+  outline: 3px solid rgba(24, 63, 103, .35); outline-offset: 2px; border-color: var(--blue);
+}
+.err { color: var(--error); font-size: 14px; min-height: 0; }
+.err:empty { display: none; }
+[aria-invalid=true] { border-color: var(--error) !important; }
+.drop { position: relative; display: grid; gap: 4px; place-items: center; text-align: center; min-height: 152px;
+  padding: 24px 16px; border: 2px dashed #b9c8d8; border-radius: 14px; background: #fff; cursor: pointer;
+  transition: border-color 150ms var(--ease), background-color 150ms var(--ease); }
+.drop:hover, .drop.over { border-color: var(--blue); background: var(--pale); }
+.drop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.drop svg { width: 32px; height: 32px; color: var(--blue); }
+  .drop .hint { text-wrap: balance; }
+.drop b { font-family: "Manrope", sans-serif; font-size: 17px; }
+.chosen { display: none; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line);
+  border-radius: 8px; background: #fff; }
+.chosen.show { display: flex; }
+.chosen .name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-weight: 700; }
+.chosen .size { color: var(--muted); font-size: 14px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.choices { display: grid; gap: 8px; }
+.choice { position: relative; }
+.choice input { position: absolute; opacity: 0; }
+.choice span { display: flex; align-items: center; min-height: 48px; padding: 10px 14px; border: 1px solid var(--line);
+  border-radius: 8px; background: #fff; cursor: pointer; transition: border-color 150ms var(--ease), background-color 150ms var(--ease); }
+.choice input:checked + span { border-color: var(--blue); background: var(--pale); font-weight: 700; }
+.choice span::before { content: ""; width: 18px; height: 18px; margin-right: 12px; border: 2px solid #9fb2c6; border-radius: 50%; flex: none; }
+.choice input:checked + span::before { border: 6px solid var(--blue); }
+fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 52px; padding: 12px 20px;
+  border: 0; border-radius: 8px; background: var(--navy); color: #fff; font: 700 17px "Manrope", sans-serif; cursor: pointer;
+  transition: background-color 150ms var(--ease), transform 120ms var(--ease); }
+.btn:hover { background: var(--blue); }
+.btn:active { transform: scale(.98); }
+.btn:focus-visible { outline: 3px solid rgba(24, 63, 103, .45); outline-offset: 3px; }
+.btn[disabled] { opacity: .6; cursor: progress; }
+.btn.ghost { background: #fff; color: var(--navy); border: 1px solid var(--line); }
+.progress { height: 6px; border-radius: 6px; background: var(--line); overflow: hidden; display: none; }
+.progress.show { display: block; }
+.progress i { display: block; height: 100%; background: var(--blue); transform-origin: left; transform: scaleX(0);
+  transition: transform 200ms var(--ease); }
+.status { font-size: 15px; }
+.status.error { color: var(--error); }
+.done { display: none; gap: 16px; }
+.done.show { display: grid; }
+.band { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px; border-radius: 8px;
+  background: var(--navy); color: #fff; }
+.band small { display: block; color: #c9d6e4; font-size: 14px; }
+.band strong { font: 700 22px "Manrope", sans-serif; font-variant-numeric: tabular-nums; }
+.privacy { color: var(--muted); font-size: 14px; margin: 0; }
+.hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+@media (min-width: 900px) {
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 520px; min-height: calc(100vh - 65px); }
+  .photo { height: auto; border-radius: 0; }
+  main { padding: 48px 48px 64px; align-self: center; }
+  h1 { font-size: 36px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <img src="{% static 'ledger/logo.png' %}" alt="">
+  <div><strong>Esicom Suppliers</strong><span>Chaka Place, Argwings Kodhek Road, Nairobi</span></div>
+</header>
+<div class="layout">
+  <div class="photo" role="img" aria-label="Esicom print room with stacks of paper beside a printer"></div>
+  <main>
+    <h1>Send us your file</h1>
+    <p class="lead">Upload the document or artwork you want printed. It goes straight to the Esicom team.</p>
+
+    <form data-upload-form novalidate>
+      <div class="field">
+        <span class="label" id="file-label">Your file</span>
+        <label class="drop" data-drop>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4m0 0-4 4m4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          <b>Tap to choose a file</b>
+          <span class="hint">PDF, Word (.docx), JPG, PNG or WebP. Up to {{ max_mb }} MB.</span>
+          <input type="file" name="file" aria-labelledby="file-label" aria-describedby="file-err"
+                 accept=".pdf,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp">
+        </label>
+        <div class="chosen" data-chosen><span class="name" data-name></span><span class="size" data-size></span></div>
+        <div class="err" id="file-err" data-err="file"></div>
+      </div>
+
+      <fieldset data-convert hidden>
+        <legend class="label">Change the format? <span class="opt">(optional)</span></legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="conversion" value="" checked><span>Send it as it is</span></label>
+          <label class="choice" data-to="docx"><input type="radio" name="conversion" value="docx"><span>Turn the PDF into Word (.docx)</span></label>
+          <label class="choice" data-to="pdf"><input type="radio" name="conversion" value="pdf"><span>Turn the Word file into PDF</span></label>
+        </div>
+        <span class="hint">Converted files can look slightly different from the original. Scanned PDFs become pictures in Word, not editable text.</span>
+      </fieldset>
+
+      <div class="field">
+        <label for="name">Your name <span class="opt">(optional)</span></label>
+        <input id="name" name="name" type="text" maxlength="120" autocomplete="name" aria-describedby="name-hint name-err">
+        <span class="hint" id="name-hint">Example: Jane Wanjiku. Helps us match the file to you.</span>
+        <div class="err" id="name-err" data-err="name"></div>
+      </div>
+
+      <div class="field">
+        <label for="phone">Phone <span class="opt">(optional)</span></label>
+        <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" aria-describedby="phone-hint phone-err">
+        <span class="hint" id="phone-hint">Kenyan number starting 07, 01 or +254. Example: 0712 345 678. We call only about this file.</span>
+        <div class="err" id="phone-err" data-err="phone"></div>
+      </div>
+
+      <div class="field">
+        <label for="note">What should we do with it? <span class="opt">(optional)</span></label>
+        <textarea id="note" name="note" maxlength="500" aria-describedby="note-hint note-err"></textarea>
+        <span class="hint" id="note-hint">Example: 200 copies, colour, A4, stapled. Up to 500 characters.</span>
+        <div class="err" id="note-err" data-err="note"></div>
+      </div>
+
+      <div class="hp" aria-hidden="true"><label>Leave empty <input name="website" tabindex="-1" autocomplete="off"></label></div>
+
+      <div class="progress" data-progress><i></i></div>
+      <div class="status" role="status" aria-live="polite" data-status></div>
+      <button class="btn" type="submit" data-submit>Send file</button>
+      <p class="privacy">Your file is private. Only Esicom staff can open it.</p>
+    </form>
+
+    <div class="done" data-done tabindex="-1">
+      <div class="band"><div><small>File sent. Your reference</small><strong data-ref></strong></div></div>
+      <p class="lead" style="margin:0">Keep this reference. If anything is unclear we will call you, or ask at the counter.</p>
+      <button class="btn ghost" type="button" data-again>Send another file</button>
+    </div>
+  </main>
+</div>
+<script>
+(() => {
+  const MAX = {{ max_mb }} * 1024 * 1024;
+  const OK_EXT = ['pdf', 'docx', 'jpg', 'jpeg', 'png', 'webp'];
+  const form = document.querySelector('[data-upload-form]');
+  const input = form.querySelector('[name=file]');
+  const drop = form.querySelector('[data-drop]');
+  const chosen = form.querySelector('[data-chosen]');
+  const convert = form.querySelector('[data-convert]');
+  const status = form.querySelector('[data-status]');
+  const submit = form.querySelector('[data-submit]');
+  const bar = form.querySelector('[data-progress]');
+  const done = document.querySelector('[data-done]');
+  const setErr = (name, msg) => {
+    const box = form.querySelector(`[data-err="${name}"]`);
+    box.textContent = msg || '';
+    const field = name === 'file' ? input : form.querySelector(`[name="${name}"]`);
+    if (field) field.setAttribute('aria-invalid', msg ? 'true' : 'false');
+    return !msg;
+  };
+  const ext = file => (file.name.split('.').pop() || '').toLowerCase();
+  const mb = bytes => bytes < 1024 * 1024 ? Math.max(1, Math.round(bytes / 1024)) + ' KB' : (bytes / 1048576).toFixed(1) + ' MB';
+  const checkFile = () => {
+    const file = input.files[0];
+    chosen.classList.toggle('show', !!file);
+    convert.hidden = true;
+    if (!file) return setErr('file', 'Choose a file to send.');
+    chosen.querySelector('[data-name]').textContent = file.name;
+    chosen.querySelector('[data-size]').textContent = mb(file.size);
+    if (!OK_EXT.includes(ext(file))) return setErr('file', 'This file type is not accepted. Send a PDF, a Word file (.docx), or a JPG, PNG or WebP photo.');
+    if (file.size > MAX) return setErr('file', `This file is ${mb(file.size)}. Files must be {{ max_mb }} MB or smaller.`);
+    const e = ext(file);
+    form.querySelector('[data-to=docx]').hidden = e !== 'pdf';
+    form.querySelector('[data-to=pdf]').hidden = e !== 'docx';
+    form.querySelector('[name=conversion][value=""]').checked = true;
+    convert.hidden = !(e === 'pdf' || e === 'docx');
+    return setErr('file', '');
+  };
+  const checkPhone = () => {
+    const raw = form.phone.value.replace(/[\s\-().]/g, '');
+    if (!raw) return setErr('phone', '');
+    return setErr('phone', /^(?:\+254|254|0)[17]\d{8}$/.test(raw) ? '' : 'Not a callable Kenyan number. Use 07, 01 or +254, for example 0712 345 678.');
+  };
+  input.addEventListener('change', checkFile);
+  form.phone.addEventListener('blur', checkPhone);
+  ['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, () => drop.classList.add('over')));
+  ['dragleave', 'drop'].forEach(t => drop.addEventListener(t, () => drop.classList.remove('over')));
+
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    status.textContent = '';
+    status.classList.remove('error');
+    const good = [checkFile(), checkPhone()].every(Boolean);
+    if (!good) { form.querySelector('[aria-invalid=true]')?.focus(); return; }
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/file-submissions/');
+    xhr.responseType = 'json';
+    xhr.upload.onprogress = e => { if (e.lengthComputable) bar.firstElementChild.style.transform = `scaleX(${e.loaded / e.total})`; };
+    const finish = () => { submit.disabled = false; submit.textContent = 'Send file'; bar.classList.remove('show'); };
+    xhr.onload = () => {
+      finish();
+      const data = xhr.response || {};
+      if (xhr.status === 201) {
+        form.hidden = true;
+        done.querySelector('[data-ref]').textContent = data.reference || '';
+        done.classList.add('show');
+        done.focus();
+      } else {
+        status.textContent = data.detail || 'The file was not sent. Check your connection and try again.';
+        status.classList.add('error');
+      }
+    };
+    xhr.onerror = () => {
+      finish();
+      status.textContent = 'No connection. Check your internet and press Send file again.';
+      status.classList.add('error');
+    };
+    submit.disabled = true;
+    submit.textContent = 'Sending…';
+    bar.firstElementChild.style.transform = 'scaleX(0)';
+    bar.classList.add('show');
+    xhr.send(new FormData(form));
+  });
+  done.querySelector('[data-again]').addEventListener('click', () => {
+    form.reset();
+    checkFile();
+    setErr('file', '');
+    chosen.classList.remove('show');
+    done.classList.remove('show');
+    form.hidden = false;
+    input.focus();
+  });
+})();
+</script>
+</body>
+</html>

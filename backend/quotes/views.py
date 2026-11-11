@@ -18,14 +18,14 @@ from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST, require_http_methods
 from django.contrib.admin.views.decorators import staff_member_required
 from .file_conversion import convert_file
-from .models import CatalogItem, FileSubmission, PAGE_CHOICES, PageContent, PageSection, QuoteRequest, SitePhoto, VisualEdit
+from .models import FileSubmission, PAGE_CHOICES, PageContent, PageSection, QuoteRequest, SitePhoto, VisualEdit
 logger = logging.getLogger(__name__)
 
 MAX_UPLOAD_SIZE = 50 * 1024 * 1024
 MAX_EMAIL_ATTACHMENT_SIZE = 15 * 1024 * 1024
 MAX_UPLOADS_PER_HOUR = 200
-ALLOWED_UPLOAD_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.webp'}
-ALLOWED_IMAGE_CONVERSIONS = {'jpeg', 'png', 'webp'}
+ALLOWED_UPLOAD_EXTENSIONS = {'.pdf', '.docx', '.jpg', '.jpeg', '.png', '.webp'}
+CONVERSIONS = {'docx': '.pdf', 'pdf': '.docx'}  # target -> the file type it converts from
 
 
 def private_media_not_found(request, path):
@@ -40,7 +40,7 @@ def public_media(request, path):
         relative_path = file_path.relative_to(media_root)
     except (OSError, ValueError):
         raise Http404
-    if not relative_path.parts or relative_path.parts[0] not in {'catalog', 'pages'} or not file_path.is_file():
+    if not relative_path.parts or relative_path.parts[0] != 'pages' or not file_path.is_file():
         raise Http404
 
     content_type = mimetypes.guess_type(file_path.name)[0] or 'application/octet-stream'
@@ -66,14 +66,6 @@ def site_content(request):
             'intro': page.intro,
             'image': page.hero_image.url if page.hero_image else '',
         }
-    products = [{
-        'page': item.page,
-        'name': item.name,
-        'slug': item.slug,
-        'description': item.description,
-        'image': item.image.url,
-        'featured': item.is_featured,
-    } for item in CatalogItem.objects.filter(is_published=True).order_by('display_order', 'name')]
     sections = [{
         'id': section.pk,
         'page': section.page,
@@ -99,7 +91,6 @@ def site_content(request):
     } for edit in VisualEdit.objects.all()]
     return JsonResponse({
         'pages': pages,
-        'products': products,
         'sections': sections,
         'photos': photos,
         'visual_edits': visual_edits,
@@ -207,28 +198,14 @@ def create_page_section(request, page):
     return JsonResponse({'ok': True, 'id': section.pk}, status=201)
 
 
-@require_GET
-def file_upload_qr(request):
-    target = f'{settings.ESICOM_PUBLIC_SITE_URL.rstrip("/")}/send-file/'
-    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=8, border=4)
-    qr.add_data(target)
-    qr.make(fit=True)
-    output = BytesIO()
-    qr.make_image(fill_color='#183c35', back_color='white').save(output, format='PNG')
-    response = HttpResponse(output.getvalue(), content_type='image/png')
-    response['Cache-Control'] = 'public, max-age=300'
-    response['X-Content-Type-Options'] = 'nosniff'
-    return response
-
-
 def _validate_upload(uploaded_file):
     extension = Path(uploaded_file.name.replace('\\', '/')).suffix.lower()
     if extension not in ALLOWED_UPLOAD_EXTENSIONS:
-        return None, 'Upload a PDF, JPG, PNG, or WebP file.'
+        return None, 'This file type is not accepted. Send a PDF, a Word file (.docx), or a JPG, PNG or WebP photo.'
     if not uploaded_file.size:
         return None, 'The selected file is empty.'
     if uploaded_file.size > MAX_UPLOAD_SIZE:
-        return None, 'Files must be 50 MB or smaller.'
+        return None, f'This file is {uploaded_file.size // (1024 * 1024)} MB. Files must be 50 MB or smaller.'
 
     uploaded_file.seek(0)
     signature = uploaded_file.read(5)
@@ -236,6 +213,16 @@ def _validate_upload(uploaded_file):
     if extension == '.pdf':
         if not signature.startswith(b'%PDF-'):
             return None, 'The selected file is not a valid PDF.'
+    elif extension == '.docx':
+        import zipfile
+        try:
+            with zipfile.ZipFile(uploaded_file) as archive:
+                if 'word/document.xml' not in archive.namelist():
+                    return None, 'The selected file is not a valid Word document.'
+        except zipfile.BadZipFile:
+            return None, 'The selected file is not a valid Word document.'
+        finally:
+            uploaded_file.seek(0)
     else:
         from PIL import Image, UnidentifiedImageError
         try:
@@ -259,6 +246,15 @@ def _client_ip(request):
     return request.META.get('REMOTE_ADDR', 'unknown')
 
 
+@require_GET
+def upload_page(request):
+    """Public page customers reach by scanning the QR code in the shop. It only uploads and sends."""
+    return render(request, 'quotes/upload.html', {
+        'max_mb': MAX_UPLOAD_SIZE // (1024 * 1024),
+        'email_mb': MAX_EMAIL_ATTACHMENT_SIZE // (1024 * 1024),
+    })
+
+
 @csrf_exempt
 @require_POST
 def create_file_submission(request):
@@ -266,53 +262,39 @@ def create_file_submission(request):
     key = f'esicom-file-upload:{ip}'
     count = cache.get(key, 0)
     if count >= MAX_UPLOADS_PER_HOUR:
-        return JsonResponse({'detail': 'Too many uploads from this connection. Please try again later.'}, status=429)
+        return JsonResponse({'detail': 'Too many uploads from this connection. Please try again in an hour.'}, status=429)
     if request.POST.get('website', '').strip():
         return JsonResponse({'ok': True}, status=201)
     cache.set(key, count + 1, timeout=3600)
-    if request.POST.get('delivery_consent') != 'on':
-        return JsonResponse({'detail': 'Confirm that Esicom may receive this file using your selected delivery method.'}, status=400)
 
     uploaded_file = request.FILES.get('file')
     if uploaded_file is None:
-        return JsonResponse({'detail': 'Choose a file to upload.'}, status=400)
-    conversion = request.POST.get('conversion', '').strip().lower()
-    delivery_method = request.POST.get('delivery', 'email').strip().lower()
-    if delivery_method not in {'email', 'whatsapp'}:
-        return JsonResponse({'detail': 'Choose email or WhatsApp delivery.'}, status=400)
-    if delivery_method == 'email' and uploaded_file.size > MAX_EMAIL_ATTACHMENT_SIZE:
-        return JsonResponse({
-            'detail': 'Email attachments must be 15 MB or smaller. Choose WhatsApp to share larger files.'
-        }, status=413)
+        return JsonResponse({'detail': 'Choose a file to send.'}, status=400)
     extension, error = _validate_upload(uploaded_file)
     if error:
         return JsonResponse({'detail': error}, status=400)
-
-    if conversion:
-        valid_conversion = (
-            conversion == 'docx' and extension == '.pdf'
-        ) or (
-            conversion in ALLOWED_IMAGE_CONVERSIONS and extension in {'.jpg', '.jpeg', '.png', '.webp'}
-        )
-        if not valid_conversion:
-            return JsonResponse({'detail': 'That conversion is not available for this file type.'}, status=400)
+    conversion = request.POST.get('conversion', '').strip().lower()
+    if conversion and CONVERSIONS.get(conversion) != extension:
+        return JsonResponse({
+            'detail': 'That conversion does not fit this file. PDF can become Word, and Word can become PDF.'
+        }, status=400)
 
     name = request.POST.get('name', '').strip()
     phone = request.POST.get('phone', '').strip()
     note = request.POST.get('note', '').strip()
-    if len(name) > 120 or len(phone) > 40 or len(note) > 500:
-        return JsonResponse({'detail': 'One of the contact fields is too long.'}, status=400)
-    if phone and not re.fullmatch(r'[+()\-\d\s.]{5,40}', phone):
-        return JsonResponse({'detail': 'Enter a valid phone number.'}, status=400)
+    if len(name) > 120 or len(note) > 500:
+        return JsonResponse({'detail': 'Your name must be under 120 characters and the note under 500.'}, status=400)
+    if phone:
+        from ledger.validators import PHONE_HELP, display_ke_phone, normalize_ke_phone
+        try:
+            phone = display_ke_phone(normalize_ke_phone(phone))
+        except ValueError:
+            return JsonResponse({'detail': f'Phone: use a {PHONE_HELP}'}, status=400)
 
     original_name = uploaded_file.name.replace('\\', '/').split('/')[-1][:255]
     submission = FileSubmission(
-        original_filename=original_name,
-        delivery_method=delivery_method,
-        delivery_consent=True,
-        name=name,
-        phone=phone,
-        note=note,
+        original_filename=original_name, delivery_method='email', delivery_consent=True,
+        name=name, phone=phone, note=note,
     )
     converted_path = None
     try:
@@ -320,17 +302,11 @@ def create_file_submission(request):
         submission.save()
         if conversion:
             converted_path = convert_file(submission.uploaded_file.path, original_name, conversion)
-            converted_size = converted_path.stat().st_size
-            if converted_size > MAX_UPLOAD_SIZE:
-                converted_path.unlink(missing_ok=True)
-                raise ValueError('The converted file is larger than the 50 MB limit.')
-            if delivery_method == 'email' and converted_size > MAX_EMAIL_ATTACHMENT_SIZE:
-                converted_path.unlink(missing_ok=True)
-                raise ValueError('The converted file is too large to email as an attachment. Choose WhatsApp to share larger files.')
-            with converted_path.open('rb') as converted_file:
-                converted_contents = converted_file.read()
+            if converted_path.stat().st_size > MAX_UPLOAD_SIZE:
+                raise ValueError('The converted file is larger than 50 MB. Send it without converting.')
+            contents = converted_path.read_bytes()
             converted_path.unlink(missing_ok=True)
-            submission.converted_file.save(converted_path.name, ContentFile(converted_contents), save=False)
+            submission.converted_file.save(converted_path.name, ContentFile(contents), save=False)
         submission.save()
     except ValueError as exc:
         _discard_submission(submission, converted_path)
@@ -338,53 +314,44 @@ def create_file_submission(request):
     except Exception:
         _discard_submission(submission, converted_path)
         logger.exception('File submission processing failed.')
-        return JsonResponse({'detail': 'The file could not be processed. Please try again or send it without conversion.'}, status=500)
+        return JsonResponse({'detail': 'The file could not be converted. Send it without converting.'}, status=500)
 
-    download_url = request.build_absolute_uri(f'/api/file-submissions/{submission.download_token}/download/')
-    if delivery_method == 'email':
-        subject = f'New Esicom file submission #{submission.pk}'
-        body = '\n'.join([
-            f'File submission: #{submission.pk}',
-            f'Original file: {original_name}',
-            f'Name: {name or "Not provided"}',
-            f'Phone: {phone or "Not provided"}',
-            f'Note: {note or "Not provided"}',
-            f'The uploaded file is attached. Private backup download link (available until staff deletes the submission): {download_url}',
-            f'Staff record: {request.build_absolute_uri(f"/admin/quotes/filesubmission/{submission.pk}/change/")}',
-        ])
-        attachment = submission.converted_file or submission.uploaded_file
-        email = EmailMessage(
-            subject,
-            body,
-            settings.DEFAULT_FROM_EMAIL,
-            [settings.ESICOM_ENQUIRY_EMAIL],
-        )
-        if settings.EMAIL_BACKEND == 'django.core.mail.backends.console.EmailBackend':
-            logger.error('File submission %s was saved, but email delivery is not configured.', submission.pk)
-            return JsonResponse({
-                'detail': f'The file was saved (reference ES-F{submission.pk}), but email is not configured on this server. Select WhatsApp or configure SMTP.',
-                'saved': True,
-                'reference': submission.pk,
-            }, status=503)
-        try:
-            email.attach_file(attachment.path)
-            email.send(fail_silently=False)
-        except Exception:
-            logger.exception('File submission %s was saved but attachment email delivery failed.', submission.pk)
-            return JsonResponse({
-                'detail': f'The file was saved (reference ES-F{submission.pk}), but email delivery failed. Try WhatsApp sharing or try again.',
-                'saved': True,
-                'reference': submission.pk,
-            }, status=502)
-
+    _email_submission(submission)
     return JsonResponse({
         'ok': True,
-        'reference': submission.pk,
-        'filename': submission.converted_file.name and Path(submission.converted_file.name).name or original_name,
+        'reference': f'ES-F{submission.pk}',
+        'filename': Path(submission.converted_file.name).name if submission.converted_file else original_name,
         'converted': bool(submission.converted_file),
-        'delivery': delivery_method,
-        'download_url': f'/api/file-submissions/{submission.download_token}/download/',
     }, status=201)
+
+
+def _email_submission(submission):
+    """Email the file to Esicom. The file is already saved and listed in the dashboard,
+    so a mail failure is logged, not shown to the customer."""
+    dashboard = settings.ESICOM_DASHBOARD_URL.rstrip('/')
+    lines = [
+        f'Reference: ES-F{submission.pk}',
+        f'File: {submission.original_filename}',
+        f'Name: {submission.name or "Not given"}',
+        f'Phone: {submission.phone or "Not given"}',
+        f'Note: {submission.note or "None"}',
+    ]
+    attachment = submission.converted_file or submission.uploaded_file
+    attach = attachment.size <= MAX_EMAIL_ATTACHMENT_SIZE
+    lines.append('The file is attached.' if attach else 'The file is too large to attach. Open it in the dashboard.')
+    if dashboard:
+        lines.append(f'Dashboard: {dashboard}/uploads')
+    email = EmailMessage(
+        f'New file from a customer: ES-F{submission.pk}', '\n'.join(lines),
+        settings.DEFAULT_FROM_EMAIL, [settings.ESICOM_ENQUIRY_EMAIL],
+    )
+    try:
+        if attach:
+            with attachment.open('rb') as handle:
+                email.attach(Path(attachment.name).name, handle.read(), mimetypes.guess_type(attachment.name)[0])
+        email.send(fail_silently=False)
+    except Exception:
+        logger.exception('File submission %s saved but the email failed.', submission.pk)
 
 
 def _discard_submission(submission, converted_path):
@@ -396,13 +363,6 @@ def _discard_submission(submission, converted_path):
     for file_field in (submission.uploaded_file, submission.converted_file):
         if file_field:
             file_field.delete(save=False)
-
-
-@require_GET
-def download_file_submission(request, token):
-    submission = get_object_or_404(FileSubmission, download_token=token)
-    file_field = submission.converted_file or submission.uploaded_file
-    return _file_response(file_field)
 
 
 def download_submission_attachment(request, pk, file_kind):

@@ -5,7 +5,6 @@ from uuid import uuid4
 from django.core.exceptions import ValidationError
 from django.core.validators import FileExtensionValidator, MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
-from django.utils.text import slugify
 from django.utils import timezone
 
 MAX_IMAGE_SIZE = 8 * 1024 * 1024
@@ -25,11 +24,6 @@ PAGE_CHOICES = [
 ]
 
 VISUAL_PAGE_CHOICES = [('global', 'Site header and footer'), *PAGE_CHOICES]
-
-PRODUCT_PAGE_CHOICES = [
-    page for page in PAGE_CHOICES
-    if page[0] not in {'home', 'about', 'contact'}
-]
 
 SITE_PHOTO_CHOICES = [
     ('/images/photography/apparel.webp', 'Branded apparel photo'),
@@ -63,8 +57,6 @@ def public_image_storage():
 
 def content_image_path(instance, filename):
     extension = Path(filename).suffix.lower()
-    if isinstance(instance, CatalogItem):
-        return f'catalog/{instance.category}/{uuid4().hex}{extension}'
     return f'pages/{uuid4().hex}{extension}'
 
 
@@ -103,55 +95,6 @@ class PageContent(models.Model):
     def delete(self, *args, **kwargs):
         if self.hero_image:
             self.hero_image.delete(save=False)
-        return super().delete(*args, **kwargs)
-
-
-class CatalogItem(models.Model):
-    page = models.CharField(max_length=40, choices=PRODUCT_PAGE_CHOICES)
-    name = models.CharField(max_length=120)
-    slug = models.SlugField(max_length=140, unique=True, blank=True)
-    description = models.CharField(max_length=280)
-    image = models.ImageField(
-        storage=public_image_storage,
-        upload_to=content_image_path,
-        validators=[FileExtensionValidator(['jpg', 'jpeg', 'png', 'webp']), validate_image_size],
-        help_text='Upload a clear photo of the actual product or branded merchandise.',
-    )
-    is_featured = models.BooleanField(
-        default=True,
-        help_text='Featured products appear on the homepage as well as their category page.',
-    )
-    is_published = models.BooleanField(default=True)
-    display_order = models.PositiveSmallIntegerField(default=0)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ['display_order', 'name']
-        verbose_name = 'product / merchandise'
-        verbose_name_plural = 'products & merchandise'
-
-    def save(self, *args, **kwargs):
-        old_name = None
-        if self.pk:
-            old_name = CatalogItem.objects.filter(pk=self.pk).values_list('image', flat=True).first()
-        if not self.slug:
-            base_slug = slugify(self.name)[:140] or 'product'
-            candidate = base_slug
-            suffix = 2
-            while CatalogItem.objects.filter(slug=candidate).exclude(pk=self.pk).exists():
-                ending = f'-{suffix}'
-                candidate = f'{base_slug[:140 - len(ending)]}{ending}'
-                suffix += 1
-            self.slug = candidate
-        super().save(*args, **kwargs)
-        if old_name and old_name != self.image.name:
-            self.image.storage.delete(old_name)
-
-    def __str__(self):
-        return self.name
-
-    def delete(self, *args, **kwargs):
-        self.image.delete(save=False)
         return super().delete(*args, **kwargs)
 
 

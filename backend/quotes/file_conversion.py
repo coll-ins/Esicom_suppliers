@@ -2,54 +2,47 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import pymupdf as fitz
-from PIL import Image, UnidentifiedImageError
 from pdf2docx import Converter
 
 
-IMAGE_FORMATS = {
-    'jpeg': ('JPEG', 'jpg'),
-    'png': ('PNG', 'png'),
-    'webp': ('WEBP', 'webp'),
-}
-MAX_IMAGE_PIXELS = 40_000_000
 MAX_PDF_PAGES = 1000
+MAX_DOCX_BYTES = 30 * 1024 * 1024
 
 
 def convert_file(source_path, original_filename, conversion):
     source = Path(source_path)
     stem = Path(original_filename).stem[:180] or 'converted-file'
-
-    if conversion in IMAGE_FORMATS:
-        return _convert_image(source, stem, conversion)
     if conversion == 'docx':
         return _convert_pdf(source, stem)
+    if conversion == 'pdf':
+        return _convert_docx(source, stem)
     raise ValueError('Choose a supported conversion.')
 
 
-def _convert_image(source, stem, conversion):
-    image_format, extension = IMAGE_FORMATS[conversion]
-    output = None
+def _convert_docx(source, stem):
+    """Word -> PDF without LibreOffice: mammoth turns the document into HTML, WeasyPrint prints it.
+    Text, headings, lists, tables and pictures come through; exact Word layout may differ."""
+    import mammoth
+    from weasyprint import HTML
+    from weasyprint.urls import URLFetcher
+
+    if source.stat().st_size > MAX_DOCX_BYTES:
+        raise ValueError('Word files must be 30 MB or smaller to convert.')
     try:
-        with Image.open(source) as image:
-            if image.format not in {'JPEG', 'PNG', 'WEBP'}:
-                raise ValueError('Only JPEG, PNG, and WebP images can be converted.')
-            if image.width * image.height > MAX_IMAGE_PIXELS:
-                raise ValueError('This image is too large to convert.')
-            image.load()
-            if image_format == 'JPEG':
-                if image.mode in ('RGBA', 'LA') or 'transparency' in image.info:
-                    background = Image.new('RGB', image.size, 'white')
-                    foreground = image.convert('RGBA')
-                    background.paste(foreground, mask=foreground.getchannel('A'))
-                    image = background
-                else:
-                    image = image.convert('RGB')
-            output = source.with_name(f'{stem}-converted.{extension}')
-            image.save(output, format=image_format)
-    except (OSError, UnidentifiedImageError) as exc:
-        if output and output.exists():
-            output.unlink()
-        raise ValueError('The selected image could not be opened.') from exc
+        with source.open('rb') as handle:
+            result = mammoth.convert_to_html(handle)
+    except Exception as exc:  # noqa: BLE001  any parse failure means an unreadable document
+        raise ValueError('This Word file could not be read. Save it again as .docx and retry.') from exc
+    page = (
+        '<!doctype html><html><head><meta charset="utf-8"><style>'
+        '@page{size:A4;margin:20mm}body{font-family:sans-serif;font-size:11pt;line-height:1.45}'
+        'img{max-width:100%}table{border-collapse:collapse}td,th{border:1px solid #999;padding:4px}'
+        '</style></head><body>' + result.value + '</body></html>'
+    )
+    # Never fetch anything a customer's file points to; only pictures stored inside the file.
+    embedded_only = URLFetcher(allowed_protocols={'data'})
+    output = source.with_name(f'{stem}-converted.pdf')
+    HTML(string=page, url_fetcher=embedded_only).write_pdf(output)
     return output
 
 

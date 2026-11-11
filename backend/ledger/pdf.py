@@ -142,8 +142,10 @@ def build_context(v: DocumentView) -> dict:
 
 def _html_to_pdf(html: str) -> bytes:
     from weasyprint import HTML  # heavy import; only load when a PDF is made
+    from weasyprint.urls import URLFetcher
 
-    return HTML(string=html, base_url=str(ASSETS)).write_pdf()
+    # Only our own font and image files; text typed by users can never make the server fetch a URL.
+    return HTML(string=html, base_url=str(ASSETS), url_fetcher=URLFetcher(allowed_protocols={"file", "data"})).write_pdf()
 
 
 def render_document_html(v: DocumentView) -> str:
