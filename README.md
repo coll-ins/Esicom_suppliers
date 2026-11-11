@@ -217,6 +217,25 @@ The HTTPS redirect, secure session/CSRF cookies, HSTS, allowed-host checks, and 
 2. `dashboard/vercel.json` rewrites `/ledger-api/*` to the Render backend's `/api/ledger/*`, so the login cookie is first-party and no CORS is needed. All other paths serve the app.
 3. Set Render's `ESICOM_DASHBOARD_URL` to the dashboard's HTTPS origin and redeploy Render.
 
+## Email through the Gmail API
+
+Render's free plan blocks the ports email servers use (SMTP), so the backend sends through the Gmail API over HTTPS instead. One-time setup, logged in to Google as **esicomsuppliers@gmail.com**:
+
+1. Go to console.cloud.google.com, create a project called `Esicom ledger`, then open **APIs & Services → Library**, search **Gmail API** and press **Enable**.
+2. **OAuth consent screen**: choose **External**, app name `Esicom ledger`, support email esicomsuppliers@gmail.com, save. Under **Audience**, press **Publish app** (otherwise Google stops the access after 7 days).
+3. **Credentials → Create credentials → OAuth client ID**, type **Web application**. Under **Authorised redirect URIs** add `https://developers.google.com/oauthplayground`. Create, and keep the **Client ID** and **Client secret**.
+4. Open developers.google.com/oauthplayground. Press the gear icon, tick **Use your own OAuth credentials**, paste the Client ID and secret. In the box on the left type `https://www.googleapis.com/auth/gmail.send`, press **Authorize APIs**, choose esicomsuppliers@gmail.com and allow it (Google warns the app is unverified; choose **Advanced → Go to Esicom ledger**). Press **Exchange authorization code for tokens** and copy the **Refresh token**.
+5. In Render, service **esicom-backend → Environment**, add `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` and `GMAIL_REFRESH_TOKEN`, then **Save, rebuild and deploy**.
+
+Test it: on the dashboard login page use **Forgot password**; the code should arrive in the inbox.
+
+## Moving the database to Neon
+
+1. Create a free project at neon.tech (region close to Render's Oregon, e.g. US West). Copy the connection string (it starts with `postgresql://` and ends with `sslmode=require`).
+2. In Render, service **esicom-backend → Environment**, add `NEON_DATABASE_URL` with that string and deploy. On start the app runs `manage.py move_database`: it copies every table into Neon, checks the row counts match, and never copies into a database that already has data. The log says `move_database: copied.`
+3. Then set `DATABASE_URL` to the Neon string, delete `NEON_DATABASE_URL`, and deploy. The app now runs on Neon.
+4. Check the dashboard and website leads, then delete the old Render database.
+
 ## Backups and restore test
 
 The database is Neon PostgreSQL. Neon keeps point-in-time history (the window depends on the Neon plan). Test a restore before launch and every few months:
