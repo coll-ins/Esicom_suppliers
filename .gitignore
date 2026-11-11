@@ -24,3 +24,4 @@ bundle.txt
 editor-files.txt
 settings-safe.txt
 structure.txt
+**/.ruff_cache/

@@ -8,7 +8,7 @@ ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.
 INSTALLED_APPS = [
     'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
     'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
-    'corsheaders', 'quotes', 'ledger',
+    'corsheaders', 'rest_framework', 'quotes', 'ledger',
 ]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -19,6 +19,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'ledger.middleware.DailyJobsMiddleware',
 ]
 if not DEBUG:
     MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
@@ -105,6 +106,20 @@ if not DEBUG and not ESICOM_PUBLIC_SITE_URL.startswith('https://'):
 
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
+
+# Ledger dashboard. It reaches this API through a Vercel rewrite (/ledger-api/* -> /api/ledger/*),
+# so the session cookie is first-party. Add the dashboard origin to DJANGO_CSRF_TRUSTED_ORIGINS.
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': ['ledger.auth.LedgerSessionAuthentication'],
+    'DEFAULT_PERMISSION_CLASSES': ['ledger.auth.IsLedgerUser'],
+    'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
+    'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
+    'UNAUTHENTICATED_USER': 'django.contrib.auth.models.AnonymousUser',
+}
+# Stay logged in until "Log out" (or "Log out everywhere"); 5 years is the practical maximum.
+SESSION_COOKIE_AGE = 5 * 365 * 24 * 3600
+SESSION_COOKIE_SAMESITE = 'Lax'
+LEDGER_RUN_DAILY_JOBS = os.environ.get('LEDGER_RUN_DAILY_JOBS', 'true').lower() == 'true'
 
 if os.environ.get('CLOUDINARY_URL'):
     INSTALLED_APPS = list(INSTALLED_APPS) + ['cloudinary_storage', 'cloudinary']

@@ -5,6 +5,7 @@ import os
 os.environ["DJANGO_DEBUG"] = "true"
 os.environ.pop("DATABASE_URL", None)
 
-from .settings import *
+from .settings import *  # noqa: F403
 
 EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+LEDGER_RUN_DAILY_JOBS = False

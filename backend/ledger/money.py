@@ -15,11 +15,11 @@ def line_amount(qty: int, unit_price: int) -> int:
     return qty * unit_price
 
 
-def line_vat(amount: int, vat_exempt: bool) -> int:
+def line_vat(amount: int, vat_exempt: bool, percent: int = VAT_PERCENT) -> int:
     """VAT for one line, rounded to the whole shilling (half up)."""
     if vat_exempt:
         return 0
-    return int((Decimal(amount) * VAT_PERCENT / 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
+    return int((Decimal(amount) * percent / 100).quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
 
 @dataclass(frozen=True)
@@ -37,12 +37,12 @@ class Totals:
     show_vat_row: bool  # documents show a VAT row only when a line is VAT-able
 
 
-def document_totals(lines: list[Line]) -> Totals:
+def document_totals(lines: list[Line], percent: int = VAT_PERCENT) -> Totals:
     subtotal = vat = 0
     for line in lines:
         amount = line_amount(line.qty, line.unit_price)
         subtotal += amount
-        vat += line_vat(amount, line.vat_exempt)
+        vat += line_vat(amount, line.vat_exempt, percent)
     return Totals(subtotal, vat, subtotal + vat, any(not line.vat_exempt for line in lines))
 
 
@@ -55,7 +55,8 @@ class Allocation:
 def allocate_payment(amount: int, open_invoices: list[tuple[int, int]], allow_partial: bool):
     """Apply a payment to open invoices, oldest first.
 
-    open_invoices: [(invoice_id, balance_due)] oldest first.
+    open_invoices: [(invoice_id, balance_due)] or [(invoice_id, balance_due, allow_partial)]
+    oldest first; a third item overrides allow_partial for that invoice.
     Returns (allocations, overpayment). Overpayment is what is left after every
     open invoice is paid; the caller refunds it or keeps it as credit.
     Without partial payments, each invoice must be paid in full.
@@ -64,13 +65,17 @@ def allocate_payment(amount: int, open_invoices: list[tuple[int, int]], allow_pa
         raise ValueError("Payment must be more than 0 KES.")
     allocations: list[Allocation] = []
     remaining = amount
-    for invoice_id, balance in open_invoices:
+    for entry in open_invoices:
+        invoice_id, balance = entry[0], entry[1]
+        partial_ok = entry[2] if len(entry) > 2 else allow_partial
         if remaining == 0:
             break
+        if balance <= 0:
+            continue
         if remaining >= balance:
             allocations.append(Allocation(invoice_id, balance))
             remaining -= balance
-        elif allow_partial:
+        elif partial_ok:
             allocations.append(Allocation(invoice_id, remaining))
             remaining = 0
         else:

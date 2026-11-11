@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{% block doc_title %}{{ title }}{% endblock %}</title>
+<style>
+@font-face { font-family: "Manrope"; font-weight: 400; src: url("{{ assets }}/fonts/manrope-latin-400-normal.woff"); }
+@font-face { font-family: "Manrope"; font-weight: 700; src: url("{{ assets }}/fonts/manrope-latin-700-normal.woff"); }
+@font-face { font-family: "DM Sans"; font-weight: 400; src: url("{{ assets }}/fonts/dm-sans-latin-400-normal.woff"); }
+@font-face { font-family: "DM Sans"; font-weight: 700; src: url("{{ assets }}/fonts/dm-sans-latin-700-normal.woff"); }
+
+@page { size: A4; margin: 7mm 14mm 40mm 14mm; }
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "DM Sans", sans-serif; font-size: 10pt; line-height: 1.5; color: #10243d; }
+h1, h3 { font-family: "Manrope", sans-serif; }
+
+/* Header is 60mm from the page top: photo flush to the top-right corner, navy rule right under it.
+   The text column stays left of the photo (photo starts 94mm from the right page edge). */
+.header { position: relative; height: 53mm; }
+.photo { position: absolute; top: -7mm; right: -14mm; width: 94mm; height: 60mm; }
+.brand { width: 98mm; }
+.logo { height: 22mm; width: auto; display: block; }
+.address { margin: 5mm 0 0; color: #183f67; font-size: 9pt; line-height: 1.6; }
+.tagline { margin: 2.5mm 0 0; font-weight: 700; font-size: 9pt; }
+.tagline span { color: #183f67; }
+.rule { height: 2mm; background: #10243d; margin: 0 -14mm 9mm; }
+
+.top { width: 100%; border-collapse: collapse; margin-bottom: 7mm; }
+.top td { vertical-align: top; padding: 0; }
+.title { font-size: 28pt; font-weight: 700; letter-spacing: .5pt; margin: 0 0 4mm; line-height: 1; }
+.meta { border-collapse: collapse; }
+.meta td { padding: .9mm 6mm .9mm 0; }
+.meta .k { font-weight: 700; }
+.billto { border-left: .7mm solid #183f67; padding: 0 0 1mm 6mm; }
+.billto h3 { margin: 0 0 1mm; font-size: 10.5pt; color: #183f67; }
+.billto div { overflow-wrap: anywhere; }
+
+.stamp-wrap { position: relative; }
+/* Sits in the gap between the meta table and the bill-to block. */
+.stamp { position: absolute; left: 76mm; top: 16mm; transform: rotate(-12deg);
+  border: .8mm solid #183f67; color: #183f67; padding: .5mm 3mm;
+  font-family: "Manrope", sans-serif; font-weight: 700; font-size: 16pt; letter-spacing: 2pt; }
+.stamp.void { border-color: #b3261e; color: #b3261e; }
+
+.items { width: 100%; border-collapse: collapse; }
+.items th { background: #10243d; color: #fff; text-align: left; font-weight: 700; font-size: 10pt; padding: 3mm 2.6mm; }
+.items th + th + th { border-left: .3mm solid #65768a; }
+.items td { padding: 2.6mm 2.6mm; border-bottom: .3mm solid #dbe4ed; vertical-align: top; }
+.items .r { text-align: right; white-space: nowrap; }
+.items .n { width: 10mm; }
+.items tr { page-break-inside: avoid; }
+
+.bottom { width: 100%; border-collapse: collapse; margin-top: 14mm; page-break-inside: avoid; }
+.bottom td { vertical-align: top; padding: 0; }
+.notes { border-left: .7mm solid #183f67; padding-left: 4mm; margin-right: 10mm; }
+.notes h3 { margin: 0; font-size: 10pt; }
+.notes p { margin: 0; }
+.notes .thanks { margin-top: 4mm; font-weight: 700; color: #183f67; }
+.totals { width: 82mm; border-collapse: separate; border-spacing: 0 .5mm; }
+.totals td { padding: 2.4mm 3mm; background: #eaf1f8; }
+.totals td + td { border-left: .5mm solid #fff; }
+.totals .r { text-align: right; }
+.totals tr.band td { background: #10243d; color: #fff; font-weight: 700; font-size: 13pt; padding: 2.4mm 3mm; }
+
+/* Fixed footer repeats on every page, bleeding to the page edges.
+   No explicit heights: WeasyPrint 70 drops children of a fixed box given a height. */
+.footer { position: fixed; left: -14mm; bottom: -40mm; width: 210mm; }
+.pay { background: #eaf1f8; padding: 5mm 14mm 8mm; }
+.pay h3 { margin: 0 0 .5mm; font-size: 7.5pt; letter-spacing: 1.5pt; text-transform: uppercase; color: #183f67; }
+.pay .opt { display: inline-block; vertical-align: top; margin-right: 9mm; font-size: 8.5pt; color: #65768a; }
+.pay .opt strong { display: block; color: #10243d; font-size: 10.5pt; }
+.bar { background: #10243d; height: 5mm; }
+{% block extra_css %}{% endblock %}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img class="photo" src="{{ assets }}/static/ledger/header-photo.jpg" alt="">
+  <div class="brand">
+    <img class="logo" src="{{ assets }}/static/ledger/logo.png" alt="Esicom Suppliers">
+    <p class="address">
+      Chaka Place Building, Argwings Kodhek Road<br>
+      Nairobi, Kenya<br>
+      0728 942 669 · esicomsuppliers@gmail.com
+      {% if biz.kra_pin %}<br>KRA PIN: <strong>{{ biz.kra_pin }}</strong>{% endif %}
+    </p>
+    <p class="tagline">Quality Supplies. Greater Productivity. <span>Brand Smarter.</span></p>
+  </div>
+</div>
+<div class="rule"></div>
+
+{% block content %}{% endblock %}
+
+<div class="footer">
+  <div class="pay">
+    <h3>Payment options</h3>
+    <div class="opt"><strong>M-Pesa</strong>
+      {% if biz.mpesa_paybill %}Paybill {{ biz.mpesa_paybill }}{% if biz.mpesa_account %}, account {{ biz.mpesa_account }}{% endif %}<br>{% endif %}
+      {% if biz.mpesa_till %}Till {{ biz.mpesa_till }}{% endif %}</div>
+    <div class="opt"><strong>Cash</strong></div>
+    <div class="opt"><strong>Bank</strong>
+      {% if biz.bank_name %}{{ biz.bank_name }}{% if biz.bank_branch %}, {{ biz.bank_branch }}{% endif %}<br>{% endif %}
+      {% if biz.bank_account_name %}{{ biz.bank_account_name }}<br>{% endif %}
+      {% if biz.bank_account_number %}Account {{ biz.bank_account_number }}{% endif %}</div>
+  </div>
+  <div class="bar"></div>
+</div>
+
+</body>
+</html>

@@ -20,8 +20,9 @@ def _text(pdf: bytes) -> str:
 
 
 def test_invoice_pdf_contains_correct_total():
-    v = DocumentView("INV", "ESI-INV-2026-0001", date(2026, 11, 11), BillTo("Sample Customer Ltd"), LINES,
-                     due=date(2026, 11, 25))
+    v = DocumentView(
+        "INV", "ESI-INV-2026-0001", date(2026, 11, 11), BillTo("Sample Customer Ltd"), LINES, due=date(2026, 11, 25)
+    )
     text = _text(render_document_pdf(v))
     # 4,500 + 11,000 = 15,500; VAT 720 + 1,760 = 2,480; total 17,980
     assert "INVOICE" in text
@@ -31,8 +32,13 @@ def test_invoice_pdf_contains_correct_total():
 
 
 def test_no_vat_row_and_no_blank_settings_printed():
-    v = DocumentView("INV", "ESI-INV-2026-0002", date(2026, 11, 11), BillTo("X"),
-                     [DocLine("Exercise books", 50, 45, vat_exempt=True)])
+    v = DocumentView(
+        "INV",
+        "ESI-INV-2026-0002",
+        date(2026, 11, 11),
+        BillTo("X"),
+        [DocLine("Exercise books", 50, 45, vat_exempt=True)],
+    )
     html = render_document_html(v)
     assert "VAT (16%)" not in html
     assert "KRA PIN" not in html
@@ -47,8 +53,17 @@ def test_settings_printed_when_filled():
 
 
 def test_receipt_shows_paid_mark_and_partial_amount():
-    v = DocumentView("RCP", "ESI-RCP-2026-0001", date(2026, 11, 12), BillTo("X"), LINES, amount_paid=10_000,
-                     payment_method="M-Pesa", payment_reference="TKB7XY12AB", settles="ESI-INV-2026-0001")
+    v = DocumentView(
+        "RCP",
+        "ESI-RCP-2026-0001",
+        date(2026, 11, 12),
+        BillTo("X"),
+        LINES,
+        amount_paid=10_000,
+        payment_method="M-Pesa",
+        payment_reference="TKB7XY12AB",
+        settles="ESI-INV-2026-0001",
+    )
     text = _text(render_document_pdf(v))
     assert "RECEIPT" in text and "PAID" in text
     assert "10,000" in text and "17,980" in text  # amount paid and the invoice total

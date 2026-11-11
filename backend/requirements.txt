@@ -13,3 +13,5 @@ whitenoise>=6.8,<7
 django-cloudinary-storage>=0.3,<0.4
 requests>=2.32,<3
 weasyprint==70.0
+djangorestframework>=3.15,<3.17
+mammoth>=1.8,<2
