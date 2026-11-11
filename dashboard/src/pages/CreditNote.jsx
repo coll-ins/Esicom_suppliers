@@ -28,7 +28,7 @@ export default function CreditNote() {
     if (q) items.push({ description: l.description, qty: q, unit_price: l.unit_price, vat_exempt: l.vat_exempt, product_id: l.product_id || undefined, restock: l.restock })
   }
   const extraAmt = wholeKes(extra.amount, 'Amount', { min: 1 }).value
-  if (extraAmt) items.push({ description: extra.description || 'Discount', qty: 1, unit_price: extraAmt, vat_exempt: true })
+  if (extraAmt) items.push({ description: extra.description || 'Discount', qty: 1, unit_price: extraAmt, vat_exempt: false })
   const totals = saleTotals(items.map((i) => ({ qty: i.qty, unitPrice: i.unit_price, vatExempt: i.vat_exempt })), doc.vat_percent)
   const alreadyPaid = doc.total - doc.balance
   const refundable = Math.max(totals.total - doc.balance, 0)
@@ -88,7 +88,7 @@ export default function CreditNote() {
               <Field label="Description" hint="Example: Discount agreed on 12 Nov.">
                 {(p) => <Input {...p} value={extra.description} maxLength={200} onChange={(e) => setExtra({ ...extra, description: e.target.value })} />}
               </Field>
-              <Field label="Amount (KES)" hint="Whole shillings, no VAT added." error={errors.extra}>
+              <Field label="Amount before VAT (KES)" hint="Whole shillings. VAT is taken off too." error={errors.extra}>
                 {(p) => <Input {...p} inputMode="numeric" value={extra.amount} onChange={(e) => setExtra({ ...extra, amount: e.target.value })} />}
               </Field>
             </div>

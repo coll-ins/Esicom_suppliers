@@ -8,7 +8,7 @@ from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models import Q, Sum
-from django.db.models.functions import Coalesce, Lower
+from django.db.models.functions import Coalesce, Lower, Upper
 
 USER = settings.AUTH_USER_MODEL
 
@@ -283,6 +283,14 @@ class Payment(models.Model):
 
     class Meta:
         ordering = ["-received_on", "-id"]
+        constraints = [
+            # One M-Pesa code is one real transaction; the database refuses a second live payment with it.
+            models.UniqueConstraint(
+                Upper("reference"),
+                condition=Q(method="mpesa", void=False) & ~Q(reference=""),
+                name="unique_live_mpesa_code",
+            ),
+        ]
 
     def allocated(self) -> int:
         return self.allocations.aggregate(t=Coalesce(Sum("amount"), 0))["t"]

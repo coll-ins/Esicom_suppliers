@@ -365,3 +365,57 @@ def test_failed_sale_does_not_burn_the_key(staff_client, paper):
         ).status_code
         == 201
     )
+
+
+def test_payment_cannot_be_backdated_far(owner_client, owner, customer, paper):
+    services.record_sale(owner, customer, [item(paper, 1)])
+    r = post(
+        owner_client,
+        "/api/ledger/payments/",
+        {"customer_id": customer.pk, "amount": 754, "method": "cash", "received_on": "0001-01-01"},
+    )
+    assert r.status_code == 400 and "60 days" in r.json()["detail"]
+
+
+def test_new_reset_code_does_not_cancel_the_earlier_one(owner):
+    c = Client()
+    post(c, "/api/ledger/auth/reset/request/", {"email": owner.email})
+    first = re.search(r"\b(\d{6})\b", mail.outbox[0].body).group(1)
+    post(c, "/api/ledger/auth/reset/request/", {"email": owner.email})
+    r = post(c, "/api/ledger/auth/reset/confirm/", {"email": owner.email, "code": first, "password": "short"})
+    assert r.status_code == 400  # weak password rejected...
+    r = post(
+        c, "/api/ledger/auth/reset/confirm/", {"email": owner.email, "code": first, "password": "Brand-New-Pass-77"}
+    )
+    assert r.status_code == 200  # ...without using up the code, and the earlier code still works
+
+
+def test_admin_login_is_locked_after_five_failures(owner):
+    owner.is_staff = True
+    owner.save()
+    c = Client()
+    for _ in range(5):
+        c.post("/admin/login/", {"username": owner.email, "password": "wrong"})
+    r = c.post("/admin/login/", {"username": owner.email, "password": PASSWORD})
+    assert r.status_code == 200 and b"locked" in r.content  # stays on the login page
+
+
+def test_staff_cannot_refund_through_credit_note(owner, staff_client, customer, paper):
+    from ledger.models import BusinessSettings
+
+    s = BusinessSettings.load()
+    s.staff_can_void = True
+    s.save()
+    inv = services.record_sale(owner, customer, [item(paper, 1)], payment={"amount": 754, "method": "cash"}).invoice
+    r = post(
+        staff_client,
+        f"/api/ledger/documents/{inv.pk}/credit-note/",
+        {"items": [{"description": "Discount", "qty": 1, "unit_price": 100}], "reason": "Agreed", "overpay": "refund"},
+    )
+    assert r.status_code == 400 and "Only the owner can refund" in r.json()["detail"]
+    r = post(
+        staff_client,
+        f"/api/ledger/documents/{inv.pk}/credit-note/",
+        {"items": [{"description": "Discount", "qty": 1, "unit_price": 100}], "reason": "Agreed", "overpay": "credit"},
+    )
+    assert r.status_code == 201

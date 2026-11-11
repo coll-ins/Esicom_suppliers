@@ -4,7 +4,11 @@ import secrets
 from datetime import timedelta
 
 from django.conf import settings
+from django.contrib.admin.forms import AdminAuthenticationForm
 from django.contrib.auth import get_user_model, logout
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 from rest_framework.authentication import SessionAuthentication
 from rest_framework.permissions import BasePermission
@@ -68,8 +72,10 @@ def check_lock(email: str) -> str | None:
     return None
 
 
+@transaction.atomic
 def record_failure(email: str) -> str:
-    attempt, _ = LoginAttempt.objects.get_or_create(email=email)
+    LoginAttempt.objects.get_or_create(email=email)
+    attempt = LoginAttempt.objects.select_for_update().get(email=email)  # parallel guesses all count
     if attempt.locked_until and attempt.locked_until <= timezone.now():
         attempt.failures = 0
         attempt.locked_until = None
@@ -109,7 +115,7 @@ def issue_reset_code(user) -> str | None:
     hour_ago = timezone.now() - timedelta(hours=1)
     if PasswordResetCode.objects.filter(user=user, created_at__gte=hour_ago).count() >= RESET_MAX_PER_HOUR:
         return None
-    PasswordResetCode.objects.filter(user=user, used=False).update(used=True)
+    # Earlier codes stay valid until they expire, so repeated requests cannot block a reset.
     code = f"{secrets.randbelow(1_000_000):06d}"
     PasswordResetCode.objects.create(
         user=user, code_hash=_hash(code), expires_at=timezone.now() + timedelta(minutes=RESET_MINUTES)
@@ -117,17 +123,37 @@ def issue_reset_code(user) -> str | None:
     return code
 
 
-def check_reset_code(user, code: str) -> str | None:
-    """Returns an error message, or None if the code is good (and marks it used)."""
-    rc = PasswordResetCode.objects.filter(user=user, used=False).order_by("-created_at").first()
-    if not rc or rc.expires_at <= timezone.now():
+def check_reset_code(user, code: str, *, use: bool = True) -> str | None:
+    """Returns an error message, or None if the code matches a live code (marked used when use=True)."""
+    live = list(
+        PasswordResetCode.objects.select_for_update().filter(
+            user=user, used=False, expires_at__gt=timezone.now(), attempts__lt=RESET_MAX_ATTEMPTS
+        )
+    )
+    if not live:
         return "This code has expired or was already used. Ask for a new code."
-    if rc.attempts >= RESET_MAX_ATTEMPTS:
-        return "Too many wrong codes. Ask for a new code."
-    if not hmac.compare_digest(rc.code_hash, _hash(str(code).strip())):
-        rc.attempts += 1
-        rc.save(update_fields=["attempts"])
+    digest = _hash(str(code).strip())
+    match = next((rc for rc in live if hmac.compare_digest(rc.code_hash, digest)), None)
+    if match is None:
+        PasswordResetCode.objects.filter(pk__in=[rc.pk for rc in live]).update(attempts=F("attempts") + 1)
         return "That code is wrong. Check the latest email and type the 6 digits."
-    rc.used = True
-    rc.save(update_fields=["used"])
+    if use:
+        PasswordResetCode.objects.filter(user=user, used=False).update(used=True)
     return None
+
+
+class LockedAdminLoginForm(AdminAuthenticationForm):
+    """Django admin login with the same 5-tries / 15-minute lock as the dashboard."""
+
+    def clean(self):
+        email = normalize_email(self.data.get("username"))
+        locked = check_lock(email)
+        if locked:
+            raise ValidationError(locked)
+        try:
+            data = super().clean()
+        except ValidationError:
+            record_failure(email)
+            raise
+        clear_failures(email)
+        return data

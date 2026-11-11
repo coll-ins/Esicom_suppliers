@@ -408,7 +408,10 @@ def record_sale(
     invoice = _issue_invoice(user, customer, lines, due_on=today() if payment else due_on, related=related)
     pay, over = None, 0
     if payment:
-        pay, over = _record_payment(user, customer, invoice_ids=[invoice.pk], **payment)
+        # Credit kept from earlier may already have paid the invoice; then the money goes to other
+        # open invoices or is handled as extra (refund or credit).
+        ids = [invoice.pk] if invoice.balance() > 0 else None
+        pay, over = _record_payment(user, customer, invoice_ids=ids, **payment)
     alert = None if payment else _check_credit_limit(customer, before)
     return SaleResult(invoice, None, pay, over, alert)
 
@@ -678,6 +681,7 @@ def void_document(user, doc, reason: str) -> None:
 def credit_note(user, invoice, items: list[Item], reason: str, *, overpay="refund") -> Document:
     if overpay not in {"refund", "credit"}:
         raise LedgerError("Choose Refund or Keep as credit.")
+    _can_void(user)  # a credit note takes money off an invoice, so it needs the same permission as a void
     _lock_customer(invoice.customer)
     invoice = invoices_with_balance().get(pk=invoice.pk)
     if invoice.void:
@@ -703,6 +707,8 @@ def credit_note(user, invoice, items: list[Item], reason: str, *, overpay="refun
             if not it.product or it.qty > sold.get(it.product.pk, 0):
                 raise LedgerError(f"{it.description}: you can only return items this invoice sold.")
             sold[it.product.pk] -= it.qty
+    if total - min(total, max(invoice.bal, 0)) > 0 and overpay == "refund" and not user.ledger_profile.is_owner:
+        raise LedgerError("Only the owner can refund money. Choose Keep as credit, or ask the owner.")
     applied = min(total, max(invoice.bal, 0))
     cn = _new_document(
         DocType.CREDIT_NOTE, invoice.customer, items, user, related=invoice, notes=reason[:300], percent=percent

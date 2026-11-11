@@ -363,7 +363,11 @@ def parse_customer_fields(data, *, partial=False, owner=False) -> dict:
     return out
 
 
-def parse_items(raw_items, *, allow_restock=False) -> list[Item]:
+def can_set_exempt(user) -> bool:
+    return is_owner(user) or BusinessSettings.load().staff_can_set_vat_exempt
+
+
+def parse_items(raw_items, *, allow_restock=False, can_exempt=True) -> list[Item]:
     if not isinstance(raw_items, list) or not raw_items:
         raise ValueError("Add at least one item.")
     if len(raw_items) > 200:
@@ -383,13 +387,18 @@ def parse_items(raw_items, *, allow_restock=False) -> list[Item]:
                 else whole_kes(raw["unit_price"], f"Line {n} unit price")
             )
             desc = clean_text(raw.get("description") or product.name, f"Line {n} description", min_len=2, max_len=200)
-            # Credit notes copy the invoice line's VAT status, even if the product changed since.
-            exempt = flag(raw["vat_exempt"]) if allow_restock and "vat_exempt" in raw else product.vat_exempt
-            items.append(Item(desc, qty, price, exempt, product, restock=allow_restock and flag(raw.get("restock"))))
+            items.append(
+                Item(desc, qty, price, product.vat_exempt, product, restock=allow_restock and flag(raw.get("restock")))
+            )
         else:
             desc = clean_text(raw.get("description"), f"Line {n} description", min_len=2, max_len=200)
             price = whole_kes(raw.get("unit_price"), f"Line {n} unit price")
-            items.append(Item(desc, qty, price, flag(raw.get("vat_exempt"))))
+            exempt = flag(raw.get("vat_exempt"))
+            if exempt and not can_exempt:
+                raise ValueError(
+                    f"Line {n}: only the owner can mark a line VAT exempt. The owner can allow staff in Settings."
+                )
+            items.append(Item(desc, qty, price, exempt))
     return items
 
 
@@ -505,14 +514,16 @@ def reset_confirm(request):
     user = auth.find_user(email)
     if not user:
         return Response({"detail": "This code has expired or was already used. Ask for a new code."}, status=400)
-    error = auth.check_reset_code(user, data.get("code", ""))
-    if error:
-        return Response({"detail": error}, status=400)
     password = str(data.get("password") or "")
-    try:
-        validate_password(password, user)
-    except ValidationError as e:
-        return Response({"detail": " ".join(e.messages)}, status=400)
+    with transaction.atomic():
+        error = auth.check_reset_code(user, data.get("code", ""), use=False)
+        if error:
+            return Response({"detail": error}, status=400)
+        try:  # check the new password before using up the code
+            validate_password(password, user)
+        except ValidationError as e:
+            return Response({"detail": " ".join(e.messages)}, status=400)
+        auth.check_reset_code(user, data.get("code", ""))
     user.set_password(password)
     user.save(update_fields=["password"])
     auth.end_all_sessions(user)
@@ -934,7 +945,7 @@ def buy_list(request):
 @ledger_view(["POST"])
 def sales(request):
     data = body(request)
-    items = parse_items(data.get("items"))
+    items = parse_items(data.get("items"), can_exempt=can_set_exempt(request.user))
     paid_now = parse_payment(data.get("paid_now"), required=False)
     due_on = parse_date(data.get("due_on"), "Due date")
     if due_on and due_on < services.today():
@@ -961,7 +972,7 @@ def sales(request):
 @ledger_view(["POST"])
 def quotations(request):
     data = body(request)
-    items = parse_items(data.get("items"))
+    items = parse_items(data.get("items"), can_exempt=can_set_exempt(request.user))
     valid_until = parse_date(data.get("valid_until"), "Valid until")
     lead = None
     if data.get("lead_id"):
@@ -1055,6 +1066,19 @@ def document_credit_note(request, pk):
         raise ValueError("Credit notes are issued against invoices.")
     data = body(request)
     items = parse_items(data.get("items"), allow_restock=True)
+    # Stock lines copy the VAT status they had on the invoice, even if the product changed since.
+    invoice_exempt = {ln.product_id: ln.vat_exempt for ln in d.lines.filter(product__isnull=False)}
+    exempt_custom = {ln.description for ln in d.lines.filter(product__isnull=True, vat_exempt=True)}
+    for it in items:
+        if it.product and it.product.pk in invoice_exempt:
+            it.vat_exempt = invoice_exempt[it.product.pk]
+        elif (
+            not it.product
+            and it.vat_exempt
+            and it.description not in exempt_custom
+            and not can_set_exempt(request.user)
+        ):
+            raise ValueError(f"{it.description}: only the owner can credit a line as VAT exempt.")
     reason = clean_text(data.get("reason"), "Reason", min_len=3, max_len=200)
     overpay = data.get("overpay") or "refund"
     cn = services.credit_note(request.user, d, items, reason, overpay=overpay)
@@ -1101,6 +1125,8 @@ def payments(request):
         received_on = parse_date(data.get("received_on"), "Date received") or services.today()
         if received_on > services.today():
             raise ValueError("The date received cannot be in the future.")
+        if received_on < services.today() - timedelta(days=60):
+            raise ValueError("The date received can be at most 60 days ago.")
         invoice_ids = data.get("invoice_ids") or None
         if invoice_ids is not None and (
             not isinstance(invoice_ids, list) or not all(isinstance(i, int) for i in invoice_ids)

@@ -437,3 +437,21 @@ class FailingBackend:
 
     def send_messages(self, messages):
         raise ConnectionError('SMTP down')
+
+
+class ConversionLimitTests(TestCase):
+    def test_word_zip_bomb_is_refused_quickly(self):
+        import time
+        import zipfile
+
+        data = BytesIO()
+        with zipfile.ZipFile(data, 'w', zipfile.ZIP_DEFLATED) as z:
+            z.writestr('word/document.xml', b'<w:document>' + b'A' * (210 * 1024 * 1024) + b'</w:document>')
+        upload = SimpleUploadedFile('bomb.docx', data.getvalue())
+        self.assertLess(len(data.getvalue()), 2 * 1024 * 1024)
+        start = time.monotonic()
+        with TemporaryDirectory() as media, override_settings(MEDIA_ROOT=media):
+            response = self.client.post('/api/file-submissions/', {'file': upload, 'conversion': 'pdf'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('too large inside', response.json()['detail'])
+        self.assertLess(time.monotonic() - start, 10)

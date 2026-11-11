@@ -219,6 +219,8 @@ def _validate_upload(uploaded_file):
             with zipfile.ZipFile(uploaded_file) as archive:
                 if 'word/document.xml' not in archive.namelist():
                     return None, 'The selected file is not a valid Word document.'
+                if sum(info.file_size for info in archive.infolist()) > 200 * 1024 * 1024:
+                    return None, 'This Word file is damaged or too large inside. Save it again and retry.'
         except zipfile.BadZipFile:
             return None, 'The selected file is not a valid Word document.'
         finally:
