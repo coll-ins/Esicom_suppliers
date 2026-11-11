@@ -1,6 +1,7 @@
 """Dashboard API under /api/ledger/. Every endpoint needs a logged-in owner or staff user,
 except login, CSRF and password reset."""
 
+import json
 import logging
 from datetime import date, timedelta
 from functools import wraps
@@ -12,8 +13,9 @@ from django.contrib.auth import authenticate, get_user_model, logout
 from django.contrib.auth.password_validation import validate_password
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import validate_email
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import Coalesce
 from django.http import HttpResponse
@@ -42,6 +44,7 @@ from .models import (
     Payment,
     Product,
     Profile,
+    RequestKey,
     Role,
     SaleLine,
     StockMovement,
@@ -116,6 +119,29 @@ def body(request) -> dict:
     if not isinstance(data, dict):
         raise ValueError("Send the form fields as JSON.")
     return data
+
+
+def once(request, make):
+    """Run make() once per Idempotency-Key. A retry of a request that already saved gets the
+    first answer back instead of recording the sale or payment a second time."""
+    key = str(request.headers.get("Idempotency-Key") or "").strip()[:64]
+    if not key:
+        with transaction.atomic():
+            return Response(make(), status=201)
+    try:
+        with transaction.atomic():
+            rk = RequestKey.objects.create(key=key, user=request.user)  # a concurrent retry waits here
+            data = make()
+            rk.response = json.loads(json.dumps(data, cls=DjangoJSONEncoder))
+            rk.save(update_fields=["response"])
+    except IntegrityError:
+        prev = RequestKey.objects.filter(key=key, user=request.user).first()
+        if prev is None:
+            raise
+        return Response(
+            prev.response or {"detail": "Already saved. Refresh to see it."}, status=201 if prev.response else 409
+        )
+    return Response(data, status=201)
 
 
 def parse_date(raw, field: str, *, required=False):
@@ -359,9 +385,7 @@ def parse_items(raw_items, *, allow_restock=False) -> list[Item]:
             desc = clean_text(raw.get("description") or product.name, f"Line {n} description", min_len=2, max_len=200)
             # Credit notes copy the invoice line's VAT status, even if the product changed since.
             exempt = flag(raw["vat_exempt"]) if allow_restock and "vat_exempt" in raw else product.vat_exempt
-            items.append(
-                Item(desc, qty, price, exempt, product, restock=allow_restock and flag(raw.get("restock")))
-            )
+            items.append(Item(desc, qty, price, exempt, product, restock=allow_restock and flag(raw.get("restock"))))
         else:
             desc = clean_text(raw.get("description"), f"Line {n} description", min_len=2, max_len=200)
             price = whole_kes(raw.get("unit_price"), f"Line {n} unit price")
@@ -915,23 +939,23 @@ def sales(request):
     due_on = parse_date(data.get("due_on"), "Due date")
     if due_on and due_on < services.today():
         raise ValueError("The due date cannot be in the past.")
-    with transaction.atomic():
+
+    def make():
         customer = customer_from(data, request)
         result = services.record_sale(request.user, customer, items, payment=paid_now, due_on=due_on)
         receipt = None
         if result.payment and flag(data.get("receipt")):
             receipt = services.make_receipt(request.user, result.payment)
-    return Response(
-        {
+        return {
             "customer": customer_json(customer),
             "invoice": document_json(result.invoice, detail=True) if result.invoice else None,
             "receipt": document_json(receipt, detail=True) if receipt else None,
             "on_tab": bool(result.tab),
             "overpaid": result.overpaid,
             "alert": result.alert.message if result.alert else None,
-        },
-        status=201,
-    )
+        }
+
+    return once(request, make)
 
 
 @ledger_view(["POST"])
@@ -1082,7 +1106,8 @@ def payments(request):
             not isinstance(invoice_ids, list) or not all(isinstance(i, int) for i in invoice_ids)
         ):
             raise ValueError("Pick the invoices from the list.")
-        with transaction.atomic():
+
+        def make():
             payment, extra = services.record_payment(
                 request.user,
                 customer,
@@ -1094,11 +1119,10 @@ def payments(request):
                 overpay=p["overpay"],
             )
             receipt = services.make_receipt(request.user, payment) if flag(data.get("receipt")) else None
-        payment.refresh_from_db()
-        return Response(
-            {**payment_json(payment), "overpaid": extra, "receipt": document_json(receipt) if receipt else None},
-            status=201,
-        )
+            payment.refresh_from_db()
+            return {**payment_json(payment), "overpaid": extra, "receipt": document_json(receipt) if receipt else None}
+
+        return once(request, make)
     qs = Payment.objects.select_related("customer").prefetch_related("allocations__invoice", "receipts")
     qp = request.query_params
     if qp.get("customer"):
@@ -1147,7 +1171,7 @@ def home(request):
         {
             "cash_collected": received.aggregate(s=Coalesce(Sum("amount"), 0))["s"] - refunds_today,
             "refunds_today": refunds_today,
-        "collected_by_method": {
+            "collected_by_method": {
                 row["method"]: row["s"] for row in received.values("method").annotate(s=Sum("amount"))
             },
             "invoiced": Document.objects.filter(doc_type=DocType.INVOICE, void=False, issued_on=t).aggregate(

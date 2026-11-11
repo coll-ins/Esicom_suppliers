@@ -14,9 +14,9 @@ export function Button({ variant = 'primary', loading, children, className = '',
   return (
     <button
       className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-control)] px-4 py-2.5 text-[15px] font-bold active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 ${ease} ${styles[variant]} ${className}`}
+      {...props}
       disabled={loading || props.disabled}
       aria-busy={loading || undefined}
-      {...props}
     >
       {loading ? <Spinner /> : null}
       {children}

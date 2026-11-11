@@ -48,7 +48,11 @@ REDIS_URL = os.environ.get('REDIS_URL', '').strip()
 if REDIS_URL:
     CACHES = {'default': {'BACKEND': 'django.core.cache.backends.redis.RedisCache', 'LOCATION': REDIS_URL}}
 else:
-    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'esicom-local-cache'}}
+    # Production without Redis: a database cache, so rate limits are shared by every worker.
+    CACHES = {'default': (
+        {'BACKEND': 'django.core.cache.backends.db.DatabaseCache', 'LOCATION': 'esicom_cache'} if not DEBUG
+        else {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'esicom-local-cache'}
+    )}
 
 if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -107,8 +111,9 @@ if not DEBUG and not ESICOM_PUBLIC_SITE_URL.startswith('https://'):
 
 
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
-if ESICOM_DASHBOARD_URL.startswith('https://') and ESICOM_DASHBOARD_URL not in CSRF_TRUSTED_ORIGINS:
-    CSRF_TRUSTED_ORIGINS.append(ESICOM_DASHBOARD_URL)
+for _origin in (ESICOM_DASHBOARD_URL, ESICOM_PUBLIC_SITE_URL):
+    if _origin.startswith('https://') and _origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(_origin)
 
 # Ledger dashboard. It reaches this API through a Vercel rewrite (/ledger-api/* -> /api/ledger/*),
 # so the session cookie is first-party. Add the dashboard origin to DJANGO_CSRF_TRUSTED_ORIGINS.

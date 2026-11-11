@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { post } from '../lib/api'
+import { newKey, post } from '../lib/api'
 import { kes } from '../lib/money'
 import { wholeKes } from '../lib/validate'
 import { Band, Button, Check, Choice, ErrorBox, Field, Input, Notice, todayIso } from './ui'
@@ -15,6 +15,7 @@ export default function PaymentForm({ customer, invoices, onDone }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [done, setDone] = useState(null)
+  const [saveKey] = useState(newKey)
   const amount = wholeKes(f.amount, 'Amount received', { min: 1 })
   const extra = amount.value ? amount.value - due : 0
 
@@ -33,7 +34,7 @@ export default function PaymentForm({ customer, invoices, onDone }) {
         customer_id: customer.id, amount: amount.value, method: f.method, reference: f.reference.trim(),
         received_on: f.received_on, overpay: f.overpay, receipt: f.receipt,
         invoice_ids: picked.size && picked.size !== open.length ? [...picked] : undefined,
-      })
+      }, { 'Idempotency-Key': saveKey })
       setDone(r)
       onDone?.(r)
     } catch (err) {

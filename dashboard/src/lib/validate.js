@@ -1,5 +1,7 @@
 // Same checks as backend/ledger/validators.py. Each returns '' when fine, or a plain reason.
 
+const MAX = 100_000_000 // same cap as the backend
+
 export const PHONE_HELP = 'Kenyan number starting 07, 01 or +254, for example 0712 345 678.'
 
 export function phoneError(raw) {
@@ -13,6 +15,7 @@ export function wholeKes(raw, field, { min = 0 } = {}) {
   if (!/^\d+$/.test(text)) return { error: `${field} must be a whole number of shillings, for example 1500. No cents.` }
   const value = Number(text)
   if (value < min) return { error: `${field} must be at least ${min.toLocaleString('en-KE')}.` }
+  if (value > MAX) return { error: `${field} is too large.` }
   return { value }
 }
 
@@ -21,6 +24,7 @@ export function wholeQty(raw, field = 'Quantity', { min = 1 } = {}) {
   if (!/^\d+$/.test(text)) return { error: `${field} must be a whole number, for example 5.` }
   const value = Number(text)
   if (value < min) return { error: `${field} must be at least ${min}.` }
+  if (value > 1_000_000) return { error: `${field} is too large.` }
   return { value }
 }
 

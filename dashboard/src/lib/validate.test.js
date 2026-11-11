@@ -31,3 +31,10 @@ describe('money input', () => {
     expect(wholeKes('', 'Price').error).toMatch(/whole number/)
   })
 })
+
+describe('limits', () => {
+  it('rejects absurd amounts before the maths breaks', () => {
+    expect(wholeKes('99999999999999999999', 'Price').error).toMatch(/too large/)
+    expect(wholeQty('5000000').error).toMatch(/too large/)
+  })
+})

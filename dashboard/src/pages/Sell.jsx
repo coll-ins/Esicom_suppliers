@@ -5,7 +5,7 @@ import Share from '../components/Share'
 import {
   Band, Button, ButtonLink, Card, Check, Choice, ErrorBox, Field, Input, Notice, PageHeader, TotalsRows, todayIso, useLoad,
 } from '../components/ui'
-import { get, post } from '../lib/api'
+import { get, newKey, post } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { kes, saleTotals } from '../lib/money'
 import { stockError, textError, wholeKes, wholeQty } from '../lib/validate'
@@ -34,6 +34,7 @@ export default function Sell({ mode }) {
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
   const [lead, setLead] = useState(null)
+  const [saveKey, setSaveKey] = useState(newKey)
 
   useEffect(() => {
     if (!quotation || !leadId) return
@@ -137,7 +138,7 @@ export default function Sell({ mode }) {
           body.paid_now = { amount: amount.value, method: pay.method, reference: pay.reference.trim(), overpay: pay.overpay }
           body.receipt = pay.receipt
         }
-        setResult(await post('/sales/', body))
+        setResult(await post('/sales/', body, { 'Idempotency-Key': saveKey }))
       }
       setStep('done')
       window.scrollTo(0, 0)
@@ -151,7 +152,7 @@ export default function Sell({ mode }) {
 
   const reset = () => {
     setCustomer(null); setLines([]); setPay({ method: 'mpesa', amount: '', reference: '', overpay: 'refund', receipt: false })
-    setPayMode('now'); setDueOn(''); setValidUntil(''); setResult(null); setErrors({}); setStep('edit'); setError(null)
+    setPayMode('now'); setDueOn(''); setValidUntil(''); setResult(null); setErrors({}); setStep('edit'); setError(null); setSaveKey(newKey())
   }
 
   if (step === 'done' && result) {

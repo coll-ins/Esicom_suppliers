@@ -24,7 +24,7 @@ export function setLoggedOutHandler(fn) {
   onLoggedOut = fn
 }
 
-export async function api(path, { method = 'GET', body, raw = false } = {}) {
+export async function api(path, { method = 'GET', body, raw = false, headers = {} } = {}) {
   if (method !== 'GET') await ensureCsrf()
   let res
   try {
@@ -35,6 +35,7 @@ export async function api(path, { method = 'GET', body, raw = false } = {}) {
         Accept: 'application/json',
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
         ...(method !== 'GET' ? { 'X-CSRFToken': cookie('csrftoken') } : {}),
+        ...headers,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
@@ -57,7 +58,10 @@ export async function api(path, { method = 'GET', body, raw = false } = {}) {
 }
 
 export const get = (path) => api(path)
-export const post = (path, body = {}) => api(path, { method: 'POST', body })
+export const post = (path, body = {}, headers) => api(path, { method: 'POST', body, headers })
+
+// One key per form: if a save is retried after a lost reply, the server returns the first result.
+export const newKey = () => crypto.randomUUID()
 export const patch = (path, body) => api(path, { method: 'PATCH', body })
 export const put = (path, body) => api(path, { method: 'PUT', body })
 

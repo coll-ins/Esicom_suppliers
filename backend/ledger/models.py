@@ -5,6 +5,7 @@ Issued documents are never edited: corrections are a void or a credit note.
 """
 
 from django.conf import settings
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models
 from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce, Lower
@@ -361,3 +362,12 @@ class JobRun(models.Model):
 
     class Meta:
         constraints = [models.UniqueConstraint(fields=["name", "day"], name="one_job_run_per_day")]
+
+
+class RequestKey(models.Model):
+    """One-time key sent with a sale or payment, so a retried request never saves twice."""
+
+    key = models.CharField(max_length=64, unique=True)
+    user = models.ForeignKey(USER, on_delete=models.CASCADE, related_name="+")
+    response = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
+    created_at = models.DateTimeField(auto_now_add=True)

@@ -60,14 +60,18 @@ def send_due_reminders(today) -> dict:
 
 
 def run_daily_jobs(today, *, force=False) -> dict | None:
-    """Runs once per day. Returns None if today's run already happened."""
-    if not force:
-        try:
-            with transaction.atomic():
-                JobRun.objects.create(name="daily", day=today)
-        except IntegrityError:
-            return None
+    """Runs once per day. Returns None if today's run already happened.
+
+    The day is marked done only after the run finishes, so a run killed halfway (server
+    asleep, redeploy) is retried. ReminderSent rows stop any email going out twice."""
+    if not force and JobRun.objects.filter(name="daily", day=today).exists():
+        return None
     result = send_due_reminders(today)
+    try:
+        with transaction.atomic():
+            JobRun.objects.create(name="daily", day=today)
+    except IntegrityError:
+        pass  # another worker finished first
     logger.info("Daily jobs for %s: %s", today, result)
     return result
 

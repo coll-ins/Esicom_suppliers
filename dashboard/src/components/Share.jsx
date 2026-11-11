@@ -5,7 +5,7 @@ import { Button, ButtonLink, Dialog, ErrorBox, Field, Input, Notice } from './ui
 
 export function whatsappHref(doc) {
   const w = doc.whatsapp || {}
-  return `https://wa.me/${w.phone || ''}?text=${encodeURIComponent(w.text || '')}`
+  return `https://wa.me/${encodeURIComponent(w.phone || '')}?text=${encodeURIComponent(w.text || '')}`
 }
 
 // Open / download the PDF, send on WhatsApp (staff attach the PDF by hand), email it.

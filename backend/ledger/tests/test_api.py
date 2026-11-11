@@ -331,3 +331,37 @@ def test_audit_log_records_actions(owner_client, owner, customer, paper):
     entries = owner_client.get("/api/ledger/audit/").json()
     assert any("Issued ESI-INV" in e["summary"] for e in entries)
     assert any(e["action"] == "login" for e in entries)
+
+
+def test_retried_sale_with_same_key_is_saved_once(staff_client, paper):
+    body = {
+        "walk_in": True,
+        "items": [{"product_id": paper.pk, "qty": 1}],
+        "paid_now": {"amount": 754, "method": "cash"},
+    }
+    first = staff_client.post("/api/ledger/sales/", body, content_type="application/json", HTTP_IDEMPOTENCY_KEY="k-1")
+    again = staff_client.post("/api/ledger/sales/", body, content_type="application/json", HTTP_IDEMPOTENCY_KEY="k-1")
+    assert first.status_code == again.status_code == 201
+    assert first.json()["invoice"]["number"] == again.json()["invoice"]["number"]
+    assert paper.on_hand() == 19
+
+
+def test_failed_sale_does_not_burn_the_key(staff_client, paper):
+    bad = {"walk_in": True, "items": [{"product_id": paper.pk, "qty": 99}], "paid_now": {"amount": 1, "method": "cash"}}
+    assert (
+        staff_client.post(
+            "/api/ledger/sales/", bad, content_type="application/json", HTTP_IDEMPOTENCY_KEY="k-2"
+        ).status_code
+        == 400
+    )
+    good = {
+        "walk_in": True,
+        "items": [{"product_id": paper.pk, "qty": 1}],
+        "paid_now": {"amount": 754, "method": "cash"},
+    }
+    assert (
+        staff_client.post(
+            "/api/ledger/sales/", good, content_type="application/json", HTTP_IDEMPOTENCY_KEY="k-2"
+        ).status_code
+        == 201
+    )

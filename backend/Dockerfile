@@ -21,8 +21,8 @@ RUN DJANGO_SECRET_KEY=build-only-not-a-secret-build-only-not-a-secret-build-only
     ESICOM_PUBLIC_SITE_URL=https://example.invalid \
     python manage.py collectstatic --noinput
 
-RUN useradd --create-home app && mkdir -p /var/data && chown app /var/data
+RUN useradd --create-home app && mkdir -p /var/data /app/media && chown app /var/data /app/media
 USER app
 
 EXPOSE 8000
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py ensure_owner && exec gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py createcachetable && python manage.py ensure_owner && exec gunicorn config.wsgi:application --bind 0.0.0.0:${PORT:-8000} --workers 2 --timeout 120"]
