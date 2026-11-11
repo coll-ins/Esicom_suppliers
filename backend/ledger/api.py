@@ -1,6 +1,7 @@
 """Dashboard API under /api/ledger/. Every endpoint needs a logged-in owner or staff user,
 except login, CSRF and password reset."""
 
+import logging
 from datetime import date, timedelta
 from functools import wraps
 from io import BytesIO
@@ -55,6 +56,7 @@ from .validators import (
 )
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 # ---------- helpers ----------
@@ -355,8 +357,10 @@ def parse_items(raw_items, *, allow_restock=False) -> list[Item]:
                 else whole_kes(raw["unit_price"], f"Line {n} unit price")
             )
             desc = clean_text(raw.get("description") or product.name, f"Line {n} description", min_len=2, max_len=200)
+            # Credit notes copy the invoice line's VAT status, even if the product changed since.
+            exempt = flag(raw["vat_exempt"]) if allow_restock and "vat_exempt" in raw else product.vat_exempt
             items.append(
-                Item(desc, qty, price, product.vat_exempt, product, restock=allow_restock and flag(raw.get("restock")))
+                Item(desc, qty, price, exempt, product, restock=allow_restock and flag(raw.get("restock")))
             )
         else:
             desc = clean_text(raw.get("description"), f"Line {n} description", min_len=2, max_len=200)
@@ -991,7 +995,12 @@ def document_detail(request, pk):
 @ledger_view(["GET"])
 def document_pdf(request, pk):
     d = _doc(pk)
-    return pdf_response(pdf.document_pdf(d), f"{d.number}.pdf", inline=request.query_params.get("download") != "1")
+    try:
+        content = pdf.document_pdf(d)
+    except OSError:  # WeasyPrint's system libraries missing on the server
+        logger.exception("PDF rendering failed")
+        return Response({"detail": "The PDF maker is not working on the server. Tell the developer."}, status=503)
+    return pdf_response(content, f"{d.number}.pdf", inline=request.query_params.get("download") != "1")
 
 
 @ledger_view(["POST"])
