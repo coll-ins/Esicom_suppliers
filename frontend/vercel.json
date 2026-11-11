@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/ledger-api/:path*",
-      "destination": "https://esicom-backend.onrender.com/api/ledger/:path*"
+      "source": "/ledger-api/:path(.*)",
+      "destination": "https://esicom-backend.onrender.com/api/ledger/:path"
     },
     {
       "source": "/upload",
@@ -13,27 +13,27 @@
       "destination": "https://esicom-backend.onrender.com/upload/"
     },
     {
-      "source": "/api/:path*",
-      "destination": "https://esicom-backend.onrender.com/api/:path*"
+      "source": "/api/:path(.*)",
+      "destination": "https://esicom-backend.onrender.com/api/:path"
     },
     {
-      "source": "/admin/:path*",
-      "destination": "https://esicom-backend.onrender.com/admin/:path*"
+      "source": "/admin/:path(.*)",
+      "destination": "https://esicom-backend.onrender.com/admin/:path"
     },
     {
-      "source": "/static/:path*",
-      "destination": "https://esicom-backend.onrender.com/static/:path*"
+      "source": "/static/:path(.*)",
+      "destination": "https://esicom-backend.onrender.com/static/:path"
     },
     {
-      "source": "/media/:path*",
-      "destination": "https://esicom-backend.onrender.com/media/:path*"
+      "source": "/media/:path(.*)",
+      "destination": "https://esicom-backend.onrender.com/media/:path"
     },
     {
       "source": "/dashboard",
       "destination": "/dashboard/index.html"
     },
     {
-      "source": "/dashboard/:path*",
+      "source": "/dashboard/:path(.*)",
       "destination": "/dashboard/index.html"
     }
   ],
