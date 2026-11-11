@@ -1,6 +1,6 @@
 # Esicom Suppliers website
 
-Premium multi-page Esicom Suppliers website with a warm ivory, forest-green and brass palette, locally stored category-specific product photography and the `SUPPLY. PRINT. BRAND.` positioning.
+Premium multi-page Esicom Suppliers website with a warm ivory, forest-green and brass palette, locally stored category-specific product photography and the `Quality Supplies. Greater Productivity.` positioning.
 
 ## Pages included
 
