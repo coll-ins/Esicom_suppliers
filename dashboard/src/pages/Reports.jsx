@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Band, Card, Choice, Empty, ErrorBox, Field, Input, Loading, PageHeader, Table, TotalsRows, todayIso, useLoad } from '../components/ui'
+import { Band, Bars, Card, Choice, Empty, ErrorBox, Field, Input, Loading, PageHeader, Table, TotalsRows, todayIso, useLoad } from '../components/ui'
 import { get } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { kes, num } from '../lib/money'
@@ -12,21 +12,19 @@ function Money({ range }) {
   const [d, error, reload] = useLoad(() => get(`/reports/money/?from=${range.from}&to=${range.to}`), [range.from, range.to])
   if (error) return <ErrorBox error={error} onRetry={reload} />
   if (!d) return <Loading />
-  const max = Math.max(1, ...d.by_day.map((r) => r.in))
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
       <Card className="grid gap-3">
         <h2 className="text-[18px]">Money in by day</h2>
         {d.by_day.length ? (
-          <ul className="grid gap-1.5">
-            {d.by_day.map((r) => (
-              <li key={r.day} className="grid grid-cols-[88px_minmax(0,1fr)_110px] items-center gap-3 text-[15px]">
-                <span className="text-muted">{new Date(r.day + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
-                <span className="h-3 rounded-full bg-pale"><span className="block h-3 origin-left rounded-full bg-blue" style={{ transform: `scaleX(${r.in / max})` }} /></span>
-                <span className="text-right font-bold tnum">{kes(r.in)}</span>
-              </li>
-            ))}
-          </ul>
+          <Bars
+            labelWidth="w-20"
+            formatValue={kes}
+            rows={d.by_day.map((r) => ({
+              label: new Date(r.day + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
+              value: r.in,
+            }))}
+          />
         ) : <p className="m-0 text-muted">No money received in these dates.</p>}
       </Card>
       <Card className="grid gap-3">
@@ -103,22 +101,37 @@ function Profit({ range }) {
   if (error) return <ErrorBox error={error} onRetry={reload} />
   if (!d) return <Loading />
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-      <Table head={['Item', { label: 'Sales', right: true }, { label: 'Cost', right: true }, { label: 'Profit', right: true }]}>
-        {d.items.map((r) => (
-          <tr key={r.name}>
-            <td>{r.name}{r.cost_unknown ? <span className="block text-sm text-muted">{kes(r.cost_unknown)} sold with no cost price</span> : null}</td>
-            <td className="text-right tnum">{num(r.sales)}</td>
-            <td className="text-right tnum">{num(r.cost)}</td>
-            <td className={`text-right font-bold tnum ${r.profit < 0 ? 'text-danger' : ''}`}>{num(r.profit)}</td>
-          </tr>
-        ))}
-      </Table>
+    <div className="grid gap-6">
       <Card className="grid gap-3">
-        <TotalsRows rows={[['Sales before VAT', d.sales_ex_vat], ['Cost of those items', d.cost], d.sales_without_cost > 0 && ['Sales with no cost price', d.sales_without_cost]]} />
-        <Band label="Profit" amount={d.profit} />
-        <p className="m-0 text-sm text-muted">{d.note}</p>
+        <h2 className="text-[18px]">Sales, cost and profit</h2>
+        <Bars
+          labelWidth="w-16"
+          formatValue={kes}
+          rows={[
+            { label: 'Sales', value: d.sales_ex_vat, color: 'var(--color-blue)' },
+            { label: 'Cost', value: d.cost, color: 'var(--color-muted)' },
+            { label: 'Profit', value: Math.abs(d.profit), color: d.profit < 0 ? 'var(--color-danger)' : 'var(--color-ok)' },
+          ]}
+        />
+        {d.profit < 0 ? <p className="m-0 text-sm text-danger">Profit bar shows a loss of {kes(Math.abs(d.profit))}.</p> : null}
       </Card>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <Table head={['Item', { label: 'Sales', right: true }, { label: 'Cost', right: true }, { label: 'Profit', right: true }]}>
+          {d.items.map((r) => (
+            <tr key={r.name}>
+              <td>{r.name}{r.cost_unknown ? <span className="block text-sm text-muted">{kes(r.cost_unknown)} sold with no cost price</span> : null}</td>
+              <td className="text-right tnum">{num(r.sales)}</td>
+              <td className="text-right tnum">{num(r.cost)}</td>
+              <td className={`text-right font-bold tnum ${r.profit < 0 ? 'text-danger' : ''}`}>{num(r.profit)}</td>
+            </tr>
+          ))}
+        </Table>
+        <Card className="grid gap-3">
+          <TotalsRows rows={[['Sales before VAT', d.sales_ex_vat], ['Cost of those items', d.cost], d.sales_without_cost > 0 && ['Sales with no cost price', d.sales_without_cost]]} />
+          <Band label="Profit" amount={d.profit} />
+          <p className="m-0 text-sm text-muted">{d.note}</p>
+        </Card>
+      </div>
     </div>
   )
 }
@@ -132,6 +145,10 @@ function Vat() {
       <ErrorBox error={error} onRetry={reload} />
       {d ? (
         <>
+          <Card className="grid gap-3">
+            <h2 className="text-[18px]">VAT charged by month</h2>
+            <Bars labelWidth="w-10" formatValue={kes} rows={d.months.map((m) => ({ label: MONTHS[m.month - 1], value: m.vat }))} />
+          </Card>
           <Table head={['Month', { label: 'Taxable sales', right: true }, { label: 'Exempt sales', right: true }, { label: 'VAT charged', right: true }]}>
             {d.months.map((m) => (
               <tr key={m.month}><td>{MONTHS[m.month - 1]}</td><td className="text-right tnum">{num(m.taxable)}</td><td className="text-right tnum">{num(m.exempt)}</td><td className="text-right font-bold tnum">{num(m.vat)}</td></tr>
