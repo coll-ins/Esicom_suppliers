@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { kes } from '../lib/money'
+import { kes, num } from '../lib/money'
 
 const ease = 'transition-[background-color,border-color,color,transform] duration-150 ease-[var(--ease-soft)]'
 
@@ -176,6 +176,31 @@ export function Band({ label, amount, sub, className = '' }) {
       </div>
       <div className="font-display text-[22px] font-bold tnum">{typeof amount === 'number' ? kes(amount) : amount}</div>
     </div>
+  )
+}
+
+// A row of named horizontal bars: one hue per job (magnitude = blue, de-emphasised = muted,
+// good/bad outcome = ok/danger), never color-only — every bar carries its own text label and
+// value, so nothing depends on telling hues apart. Hover/focus shows the exact figure.
+export function Bars({ rows, formatValue = num, labelWidth = 'w-24' }) {
+  const max = Math.max(1, ...rows.map((r) => Math.abs(r.value)))
+  return (
+    <ul className="grid gap-2">
+      {rows.map((r) => (
+        <li key={r.label} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 text-[15px]">
+          <span className={`truncate text-muted ${labelWidth}`} title={r.label}>{r.label}</span>
+          <span className="h-3 rounded-full bg-pale">
+            <span
+              tabIndex={0}
+              title={formatValue(r.value)}
+              className="block h-3 origin-left rounded-full transition-transform duration-200 ease-[var(--ease-soft)] hover:opacity-80 focus-visible:opacity-80"
+              style={{ transform: `scaleX(${Math.max(Math.abs(r.value) / max, r.value ? 0.01 : 0)})`, background: r.color || 'var(--color-blue)' }}
+            />
+          </span>
+          <span className="text-right font-bold tnum">{formatValue(r.value)}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
