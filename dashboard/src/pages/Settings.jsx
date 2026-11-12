@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Card, Check, Dialog, ErrorBox, Field, Input, Loading, Notice, PageHeader, useLoad } from '../components/ui'
+import { Button, Card, Check, Dialog, ErrorBox, Field, Input, Loading, Notice, PageHeader, PasswordInput, useLoad } from '../components/ui'
 import { get, post, put } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { emailError, textError, wholeQty } from '../lib/validate'
@@ -162,8 +162,8 @@ export function MyAccount() {
       <ErrorBox error={error} />
       {done ? <Notice>Password changed. Other devices are logged out.</Notice> : null}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Current password">{(p) => <Input {...p} type="password" autoComplete="current-password" value={f.current} onChange={(e) => setF({ ...f, current: e.target.value })} />}</Field>
-        <Field label="New password" hint="At least 8 characters, not only numbers.">{(p) => <Input {...p} type="password" autoComplete="new-password" value={f.new} onChange={(e) => setF({ ...f, new: e.target.value })} />}</Field>
+        <Field label="Current password">{(p) => <PasswordInput {...p} autoComplete="current-password" value={f.current} onChange={(e) => setF({ ...f, current: e.target.value })} />}</Field>
+        <Field label="New password" hint="At least 8 characters, not only numbers.">{(p) => <PasswordInput {...p} autoComplete="new-password" value={f.new} onChange={(e) => setF({ ...f, new: e.target.value })} />}</Field>
       </div>
       <Button className="justify-self-start" loading={busy} disabled={!f.current || !f.new} onClick={change}>Change password</Button>
       <div className="border-t border-line pt-4">

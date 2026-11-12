@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, ErrorBox, Field, Input, Notice, asset } from '../components/ui'
+import { Button, ErrorBox, Field, Input, Notice, PasswordInput, asset } from '../components/ui'
 import { post } from '../lib/api'
 import { useAuth } from '../lib/auth'
 
@@ -48,7 +48,7 @@ export default function Login() {
               {(p) => <Input {...p} type="email" autoComplete="username" inputMode="email" value={email} onChange={(e) => setEmail(e.target.value)} required />}
             </Field>
             <Field label="Password">
-              {(p) => <Input {...p} type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />}
+              {(p) => <PasswordInput {...p} autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />}
             </Field>
             <Button type="submit" loading={busy}>Log in</Button>
             <button type="button" className="min-h-11 justify-self-start font-bold text-blue underline" onClick={() => { setMode('request'); setError(null); setNotice('') }}>
@@ -96,7 +96,7 @@ export default function Login() {
               {(p) => <Input {...p} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} />}
             </Field>
             <Field label="New password" hint="At least 8 characters, not only numbers, not a common password.">
-              {(p) => <Input {...p} type="password" autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />}
+              {(p) => <PasswordInput {...p} autoComplete="new-password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />}
             </Field>
             <Button type="submit" loading={busy}>Save new password</Button>
             <button type="button" className="min-h-11 justify-self-start font-bold text-blue underline" onClick={() => setMode('request')}>Send a new code</button>
