@@ -217,17 +217,16 @@ The HTTPS redirect, secure session/CSRF cookies, HSTS, allowed-host checks, and 
 2. `dashboard/vercel.json` rewrites `/ledger-api/*` to the Render backend's `/api/ledger/*`, so the login cookie is first-party and no CORS is needed. All other paths serve the app.
 3. Set Render's `ESICOM_DASHBOARD_URL` to the dashboard's HTTPS origin and redeploy Render.
 
-## Email through the Gmail API
+## Email through Brevo
 
-Render's free plan blocks the ports email servers use (SMTP), so the backend sends through the Gmail API over HTTPS instead. One-time setup, logged in to Google as **esicomsuppliers@gmail.com**:
+Render's free plan blocks the ports email servers use (SMTP), so the backend sends through Brevo's HTTPS API instead. Free for up to 300 emails a day, no domain needed. One-time setup, logged in as **esicomsuppliers@gmail.com**:
 
-1. Go to console.cloud.google.com, create a project called `Esicom ledger`, then open **APIs & Services → Library**, search **Gmail API** and press **Enable**.
-2. **OAuth consent screen**: choose **External**, app name `Esicom ledger`, support email esicomsuppliers@gmail.com, save. Under **Audience**, press **Publish app** (otherwise Google stops the access after 7 days).
-3. **Credentials → Create credentials → OAuth client ID**, type **Web application**. Under **Authorised redirect URIs** add `https://developers.google.com/oauthplayground`. Create, and keep the **Client ID** and **Client secret**.
-4. Open developers.google.com/oauthplayground. Press the gear icon, tick **Use your own OAuth credentials**, paste the Client ID and secret. In the box on the left type `https://www.googleapis.com/auth/gmail.send`, press **Authorize APIs**, choose esicomsuppliers@gmail.com and allow it (Google warns the app is unverified; choose **Advanced → Go to Esicom ledger**). Press **Exchange authorization code for tokens** and copy the **Refresh token**.
-5. In Render, service **esicom-backend → Environment**, add `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET` and `GMAIL_REFRESH_TOKEN`, then **Save, rebuild and deploy**.
+1. Go to brevo.com, sign up (or log in) with esicomsuppliers@gmail.com.
+2. Open **Senders, Domains & Dedicated IPs → Senders**, add `esicomsuppliers@gmail.com` as a sender, and click the confirmation link Brevo emails to that inbox.
+3. Open **SMTP & API → API Keys**, create a new key, and copy it.
+4. In Render, service **esicom-backend → Environment**, add `BREVO_API_KEY` with that value, then **Save, rebuild and deploy**.
 
-Test it: on the dashboard login page use **Forgot password**; the code should arrive in the inbox.
+Test it: on the dashboard login page use **Forgot password**; the code should arrive in the inbox. (Gmail's own API is an alternative, but Google requires a real owned domain to publish the app — a `vercel.app`/`onrender.com` address is not accepted — so it is not usable until Esicom has one; `ledger/gmail_backend.py` is kept ready for that.)
 
 ## Moving the database to Neon
 

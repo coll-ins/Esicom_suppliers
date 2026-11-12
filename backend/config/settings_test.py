@@ -4,7 +4,7 @@ import os
 
 os.environ["DJANGO_DEBUG"] = "true"
 os.environ.pop("DATABASE_URL", None)
-for _key in ("NEON_DATABASE_URL", "GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN"):
+for _key in ("NEON_DATABASE_URL", "GMAIL_CLIENT_ID", "GMAIL_CLIENT_SECRET", "GMAIL_REFRESH_TOKEN", "BREVO_API_KEY"):
     os.environ.pop(_key, None)
 
 from .settings import *  # noqa: F403
