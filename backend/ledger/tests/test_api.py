@@ -419,3 +419,95 @@ def test_staff_cannot_refund_through_credit_note(owner, staff_client, customer, 
         {"items": [{"description": "Discount", "qty": 1, "unit_price": 100}], "reason": "Agreed", "overpay": "credit"},
     )
     assert r.status_code == 201
+
+
+def test_receive_by_the_pack_multiplies_units_and_divides_cost(owner_client, owner):
+    r = post(
+        owner_client,
+        "/api/ledger/products/",
+        {
+            "name": "Biscuits",
+            "price": 10,
+            "cost_price": 8,
+            "unit": "piece",
+            "pack_size": 24,
+            "pack_label": "box",
+            "opening_qty": 0,
+        },
+    )
+    assert r.status_code == 201, r.content
+    pid = r.json()["id"]
+    r = post(owner_client, f"/api/ledger/products/{pid}/receive/", {"qty": 2, "by_pack": True, "unit_cost": 192})
+    assert r.status_code == 200, r.content
+    assert r.json()["on_hand"] == 48  # 2 boxes x 24
+    m = owner_client.get(f"/api/ledger/products/{pid}/").json()["movements"][0]
+    assert m["unit_cost"] == 8  # 192 / 24 per box = 8 per biscuit
+    assert m["note"] == "2 boxes (24 piece each)"
+
+
+def test_receive_one_pack_uses_singular_label(owner_client):
+    r = post(
+        owner_client, "/api/ledger/products/", {"name": "Toner", "price": 100, "pack_size": 6, "pack_label": "box"}
+    )
+    pid = r.json()["id"]
+    post(owner_client, f"/api/ledger/products/{pid}/receive/", {"qty": 1, "by_pack": True})
+    m = owner_client.get(f"/api/ledger/products/{pid}/").json()["movements"][0]
+    assert m["note"] == "1 box (6 piece each)"
+
+
+def test_receive_by_pack_rounds_cost_half_up(owner_client, owner):
+    r = post(
+        owner_client,
+        "/api/ledger/products/",
+        {
+            "name": "Sweets",
+            "price": 5,
+            "unit": "piece",
+            "pack_size": 3,
+            "pack_label": "pack",
+            "opening_qty": 0,
+        },
+    )
+    pid = r.json()["id"]
+    r = post(owner_client, f"/api/ledger/products/{pid}/receive/", {"qty": 1, "by_pack": True, "unit_cost": 10})
+    assert r.json()["on_hand"] == 3
+    m = owner_client.get(f"/api/ledger/products/{pid}/").json()["movements"][0]
+    assert m["unit_cost"] == 3  # 10/3 = 3.33 -> rounds to 3 (half-up on the x2 form)
+
+
+def test_pack_size_over_one_requires_a_pack_name(owner_client):
+    r = post(owner_client, "/api/ledger/products/", {"name": "Loose biscuits", "price": 10, "pack_size": 24})
+    assert r.status_code == 400 and "Name the pack" in r.json()["detail"]
+
+
+def test_staff_cannot_set_pack_cost(staff_client, owner):
+    r = post(
+        staff_client,
+        "/api/ledger/products/",
+        {
+            "name": "Boxed pens",
+            "price": 20,
+            "unit": "piece",
+            "pack_size": 10,
+            "pack_label": "box",
+        },
+    )
+    pid = r.json()["id"]
+    r = post(staff_client, f"/api/ledger/products/{pid}/receive/", {"qty": 1, "by_pack": True, "unit_cost": 100})
+    assert r.status_code == 400 and "owner" in r.json()["detail"]
+    r = post(staff_client, f"/api/ledger/products/{pid}/receive/", {"qty": 1, "by_pack": True})
+    assert r.status_code == 200 and r.json()["on_hand"] == 10
+
+
+def test_quick_sale_endpoint_is_just_a_normal_walk_in_sale(staff_client, paper):
+    r = post(
+        staff_client,
+        "/api/ledger/sales/",
+        {
+            "walk_in": True,
+            "items": [{"product_id": paper.pk, "qty": 1}],
+            "paid_now": {"amount": 754, "method": "cash"},
+        },
+    )
+    assert r.status_code == 201, r.content
+    assert r.json()["invoice"]["status"] == "paid"

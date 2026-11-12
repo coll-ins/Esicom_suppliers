@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { MoveDialog, ProductFields, productBody, productErrors } from '../components/StockForms'
+import { MoveDialog, ProductFields, QuickSaleDialog, productBody, productErrors } from '../components/StockForms'
 import { BackLink, Button, Card, ErrorBox, Loading, Notice, PageHeader, Pill, Table, dateText, useLoad } from '../components/ui'
 import { get, patch } from '../lib/api'
 import { useAuth } from '../lib/auth'
@@ -17,6 +17,8 @@ export default function ProductView() {
   const [saveError, setSaveError] = useState(null)
   const [saved, setSaved] = useState(false)
   const [move, setMove] = useState(null)
+  const [selling, setSelling] = useState(false)
+  const [notice, setNotice] = useState('')
 
   if (error) return <><BackLink to="/stock" label="stock" /><ErrorBox error={error} onRetry={reload} /></>
   if (!p) return <Loading />
@@ -52,13 +54,18 @@ export default function ProductView() {
         back={<BackLink to="/stock" label="stock" />}
         title={p.name}
         actions={<>
+          <Button disabled={p.on_hand <= 0} onClick={() => { setNotice(''); setSelling(true) }}>Sold</Button>
           <Button variant="secondary" onClick={() => setMove('receive')}>Receive</Button>
           <Button variant="secondary" disabled={p.on_hand <= 0} onClick={() => setMove('take_out')}>Take out</Button>
         </>}
       >
-        <span className="inline-flex items-center gap-2"><b className="tnum text-navy">{p.on_hand} {p.unit}{p.on_hand === 1 ? '' : 's'} on hand</b> <Pill status={p.status} /></span>
+        <span className="inline-flex items-center gap-2">
+          <b className="tnum text-navy">{p.on_hand} {p.unit}{p.on_hand === 1 ? '' : 's'} on hand</b> <Pill status={p.status} />
+          {p.pack_size > 1 ? <span className="text-sm text-muted">1 {p.pack_label} = {p.pack_size} {p.unit}</span> : null}
+        </span>
       </PageHeader>
       {!p.active ? <Notice tone="warn">This product is hidden from sales and lists.</Notice> : null}
+      {notice ? <Notice>{notice}</Notice> : null}
       <div className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
         <div className="grid gap-3">
           <h2 className="text-[18px]">Stock history</h2>
@@ -84,6 +91,21 @@ export default function ProductView() {
         </Card>
       </div>
       {move ? <MoveDialog product={p} kind={move} onClose={() => setMove(null)} onDone={() => { setMove(null); reload() }} /> : null}
+      {selling ? (
+        <QuickSaleDialog
+          product={p}
+          onClose={() => setSelling(false)}
+          onDone={(r) => {
+            const line = r.invoice?.lines?.[0]
+            const qty = line?.qty ?? 1
+            let msg = `Sold ${qty} x ${p.name} for ${kes(r.invoice?.total ?? 0)}.`
+            if (owner && p.cost_price != null && line) msg += ` Profit ${kes(line.amount - p.cost_price * qty)}.`
+            setSelling(false)
+            setNotice(msg)
+            reload()
+          }}
+        />
+      ) : null}
     </>
   )
 }

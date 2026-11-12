@@ -103,11 +103,16 @@ class Customer(models.Model):
 
 class Product(models.Model):
     name = models.CharField(max_length=160)
-    unit = models.CharField(max_length=30, default="piece")
-    price = models.PositiveIntegerField()  # selling price excluding VAT
-    cost_price = models.PositiveIntegerField(null=True, blank=True)  # owner only
+    unit = models.CharField(max_length=30, default="piece")  # the unit it is SOLD in, e.g. "piece", "ream"
+    price = models.PositiveIntegerField()  # selling price per unit, excluding VAT
+    cost_price = models.PositiveIntegerField(null=True, blank=True)  # owner only, per unit
     vat_exempt = models.BooleanField(default=False)
     reorder_level = models.PositiveIntegerField(default=0)
+    # How stock arrives, if not one at a time: pack_size units per pack_label (e.g. 24 per "box").
+    # Receiving can then be typed as "2 boxes" and the system multiplies and divides the cost
+    # itself. pack_size 1 (the default) means stock always arrives loose, no pack to name.
+    pack_size = models.PositiveIntegerField(default=1)
+    pack_label = models.CharField(max_length=30, blank=True)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
