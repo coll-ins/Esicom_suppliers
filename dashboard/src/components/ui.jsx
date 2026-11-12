@@ -96,6 +96,37 @@ export function Input(props) {
   return <input className={`${control} tnum`} {...props} />
 }
 
+// Password field with a show/hide toggle. Keeps the autoComplete value the browser needs
+// to offer to save and autofill the password (current-password / new-password).
+export function PasswordInput(props) {
+  const [shown, setShown] = useState(false)
+  return (
+    <div className="relative">
+      <input className={`${control} pr-12`} {...props} type={shown ? 'text' : 'password'} />
+      <button
+        type="button"
+        onClick={() => setShown((s) => !s)}
+        aria-label={shown ? 'Hide password' : 'Show password'}
+        aria-pressed={shown}
+        className="absolute inset-y-0 right-0 grid w-11 place-items-center text-muted hover:text-navy"
+      >
+        {shown ? (
+          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M2 12s3.5-7 10-7c2.1 0 3.9.6 5.4 1.5M22 12s-3.5 7-10 7c-2.1 0-3.9-.6-5.4-1.5" />
+            <path d="M3 3l18 18" />
+            <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+          </svg>
+        )}
+      </button>
+    </div>
+  )
+}
+
 export function Select({ children, ...props }) {
   return <select className={`${control} appearance-none bg-[length:16px] bg-[right_12px_center] bg-no-repeat pr-9`} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2365768a' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E\")" }} {...props}>{children}</select>
 }
