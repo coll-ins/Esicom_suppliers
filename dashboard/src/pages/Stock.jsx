@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { MoveDialog, ProductFields, emptyProduct, productBody, productErrors } from '../components/StockForms'
-import { Button, ButtonLink, Choice, Dialog, Empty, ErrorBox, Field, Input, Loading, PageHeader, Pill, useLoad } from '../components/ui'
+import { MoveDialog, ProductFields, QuickSaleDialog, emptyProduct, productBody, productErrors } from '../components/StockForms'
+import { Button, ButtonLink, Choice, Dialog, Empty, ErrorBox, Field, Input, Loading, Notice, PageHeader, Pill, useLoad } from '../components/ui'
 import { get, patch, post } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { kes } from '../lib/money'
@@ -13,6 +13,8 @@ export default function Stock() {
   const [q, setQ] = useState('')
   const [show, setShow] = useState('all')
   const [move, setMove] = useState(null)
+  const [selling, setSelling] = useState(null)
+  const [notice, setNotice] = useState('')
   const [adding, setAdding] = useState(false)
   const [f, setF] = useState(emptyProduct)
   const [errors, setErrors] = useState({})
@@ -50,6 +52,7 @@ export default function Stock() {
         <Choice label="Show" value={show} onChange={setShow} options={[{ value: 'all', label: 'All' }, { value: 'reorder', label: 'Low' }, { value: 'out', label: 'Out' }]} />
       </div>
       <ErrorBox error={error} onRetry={reload} />
+      {notice ? <Notice>{notice}</Notice> : null}
       {!list && !error ? <Loading /> : null}
       {list && !list.length ? <Empty title="No products yet" action={<Button onClick={() => setAdding(true)}>Add your first product</Button>}>Add each product with the count on the shelf today.</Empty> : null}
       {list?.length && !rows.length ? <Empty title="Nothing matches">Clear the search or pick All.</Empty> : null}
@@ -59,13 +62,18 @@ export default function Stock() {
             <li key={p.id} className="grid gap-3 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_120px_auto] sm:items-center">
               <Link to={`/stock/${p.id}`} className="min-w-0">
                 <span className="block truncate font-bold text-navy underline-offset-2 hover:underline">{p.name}</span>
-                <span className="text-sm text-muted">{kes(p.price)} per {p.unit}{p.vat_exempt ? ', VAT exempt' : ''}{me.role === 'owner' && p.cost_price !== null && p.cost_price !== undefined ? `, cost ${kes(p.cost_price)}` : ''}</span>
+                <span className="text-sm text-muted">
+                  {kes(p.price)} per {p.unit}{p.vat_exempt ? ', VAT exempt' : ''}
+                  {me.role === 'owner' && p.cost_price !== null && p.cost_price !== undefined ? `, cost ${kes(p.cost_price)}` : ''}
+                  {p.pack_size > 1 ? `, 1 ${p.pack_label} = ${p.pack_size} ${p.unit}` : ''}
+                </span>
               </Link>
               <div className="flex items-center gap-2 sm:grid sm:justify-items-end sm:gap-1">
                 <b className="font-display text-[20px] tnum">{p.on_hand}</b>
                 <Pill status={p.status} />
               </div>
-              <div className="flex gap-2 sm:justify-end">
+              <div className="flex flex-wrap gap-2 sm:justify-end">
+                <Button disabled={p.on_hand <= 0} onClick={() => { setNotice(''); setSelling(p) }}>Sold</Button>
                 <Button variant="secondary" onClick={() => setMove({ product: p, kind: 'receive' })}>Receive</Button>
                 <Button variant="secondary" disabled={p.on_hand <= 0} onClick={() => setMove({ product: p, kind: 'take_out' })}>Take out</Button>
               </div>
@@ -77,6 +85,23 @@ export default function Stock() {
       <HiddenProducts onRestored={reload} />
 
       {move ? <MoveDialog product={move.product} kind={move.kind} onClose={() => setMove(null)} onDone={() => { setMove(null); reload() }} /> : null}
+      {selling ? (
+        <QuickSaleDialog
+          product={selling}
+          onClose={() => setSelling(null)}
+          onDone={(r) => {
+            const line = r.invoice?.lines?.[0]
+            const qty = line?.qty ?? 1
+            let msg = `Sold ${qty} x ${selling.name} for ${kes(r.invoice?.total ?? 0)}.`
+            if (me.role === 'owner' && selling.cost_price != null && line) {
+              msg += ` Profit ${kes(line.amount - selling.cost_price * qty)}.`
+            }
+            setSelling(null)
+            setNotice(msg)
+            reload()
+          }}
+        />
+      ) : null}
 
       <Dialog open={adding} title="Add product" onClose={() => setAdding(false)}>
         <ErrorBox error={saveError} />

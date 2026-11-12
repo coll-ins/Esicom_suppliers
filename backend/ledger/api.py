@@ -218,6 +218,8 @@ def product_json(p, on_hand: int, owner: bool):
         "price": p.price,
         "vat_exempt": p.vat_exempt,
         "reorder_level": p.reorder_level,
+        "pack_size": p.pack_size,
+        "pack_label": p.pack_label,
         "active": p.active,
         "on_hand": on_hand,
         "status": status,
@@ -796,6 +798,12 @@ def parse_product_fields(data, *, partial=False) -> dict:
         out["unit"] = clean_text(data.get("unit"), "Unit", min_len=1, max_len=30) or "piece"
     if "cost_price" in data:
         out["cost_price"] = None if data["cost_price"] in (None, "") else whole_kes(data["cost_price"], "Cost price")
+    if "pack_size" in data:
+        out["pack_size"] = whole_qty(data["pack_size"], "Pack size", minimum=1)
+    if "pack_label" in data:
+        out["pack_label"] = clean_text(data["pack_label"], "Pack name", max_len=30) if data["pack_label"] else ""
+    if out.get("pack_size", 1) > 1 and not out.get("pack_label"):
+        raise ValueError("Name the pack, for example 'box' or 'carton'.")
     if "vat_exempt" in data:
         out["vat_exempt"] = flag(data["vat_exempt"])
     if "reorder_level" in data:
@@ -873,15 +881,30 @@ def product_detail(request, pk):
 
 @ledger_view(["POST"])
 def product_receive(request, pk):
+    """Stock arrives either loose (qty in units) or, if the product has a pack size, by the pack
+    (e.g. "2 boxes") — the pack count and its cost are converted to units automatically, so nobody
+    has to do that arithmetic by hand every time."""
     p = get_object_or_404(Product, pk=pk)
     data = body(request)
-    qty = whole_qty(data.get("qty"), "Quantity received")
+    by_pack = flag(data.get("by_pack")) and p.pack_size > 1
+    label = p.pack_label or "pack"
+    if by_pack:
+        plural = label + "es" if label.endswith(("x", "s", "sh", "ch")) else label + "s"
+        packs = whole_qty(data.get("qty"), f"Number of {plural}")
+        qty = packs * p.pack_size
+        note_prefix = f"{packs} {label if packs == 1 else plural} ({p.pack_size} {p.unit} each)"
+    else:
+        qty = whole_qty(data.get("qty"), "Quantity received")
+        note_prefix = ""
     unit_cost = None
     if data.get("unit_cost") not in (None, ""):
         if not is_owner(request.user):
             raise ValueError("Only the owner can enter cost prices.")
-        unit_cost = whole_kes(data["unit_cost"], "Cost per item")
+        entered = whole_kes(data["unit_cost"], f"Cost per {label}" if by_pack else "Cost per item")
+        # Whole-shilling round-half-up, same rule as VAT, so the unit cost is never silently lost.
+        unit_cost = (entered * 2 + p.pack_size) // (p.pack_size * 2) if by_pack else entered
     note = clean_text(data.get("note"), "Note", max_len=200)
+    note = f"{note_prefix}: {note}" if note_prefix and note else note_prefix or note
     services.receive_stock(request.user, p, qty, unit_cost, note)
     return Response(product_json(p, p.on_hand(), is_owner(request.user)))
 
