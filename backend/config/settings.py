@@ -1,149 +1,188 @@
-﻿import os
+import os
 from urllib.parse import urlsplit
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-only-change-this-before-deployment')
-DEBUG = os.environ.get('DJANGO_DEBUG', 'false').lower() == 'true'
-ALLOWED_HOSTS = [h.strip() for h in os.environ.get('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',') if h.strip()]
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-change-this-before-deployment")
+DEBUG = os.environ.get("DJANGO_DEBUG", "false").lower() == "true"
+ALLOWED_HOSTS = [
+    h.strip() for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "127.0.0.1,localhost").split(",") if h.strip()
+]
 INSTALLED_APPS = [
-    'django.contrib.admin', 'django.contrib.auth', 'django.contrib.contenttypes',
-    'django.contrib.sessions', 'django.contrib.messages', 'django.contrib.staticfiles',
-    'corsheaders', 'rest_framework', 'quotes', 'ledger',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    "corsheaders",
+    "rest_framework",
+    "quotes",
+    "ledger",
 ]
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'ledger.middleware.DailyJobsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "ledger.middleware.DailyJobsMiddleware",
 ]
 if not DEBUG:
-    MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
-ROOT_URLCONF = 'config.urls'
-TEMPLATES = [{'BACKEND':'django.template.backends.django.DjangoTemplates','DIRS':[BASE_DIR / 'templates'],'APP_DIRS':True,'OPTIONS':{'context_processors':['django.template.context_processors.request','django.contrib.auth.context_processors.auth','django.contrib.messages.context_processors.messages']}}]
-WSGI_APPLICATION = 'config.wsgi.application'
-DATABASE_URL = os.environ.get('DATABASE_URL', '').strip()
-if DATABASE_URL.startswith(('postgres://', 'postgresql://')):
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
+ROOT_URLCONF = "config.urls"
+TEMPLATES = [
+    {
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [BASE_DIR / "templates"],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
+            ]
+        },
+    }
+]
+WSGI_APPLICATION = "config.wsgi.application"
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+if DATABASE_URL.startswith(("postgres://", "postgresql://")):
     try:
         import dj_database_url
     except ImportError as exc:
-        raise RuntimeError('Install dj-database-url to use DATABASE_URL.') from exc
-    DATABASES = {'default': dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=not DEBUG)}
+        raise RuntimeError("Install dj-database-url to use DATABASE_URL.") from exc
+    DATABASES = {"default": dj_database_url.parse(DATABASE_URL, conn_max_age=600, ssl_require=not DEBUG)}
 else:
-    DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
+    DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
 
 # Only while moving to a new database: `manage.py move_database` copies everything into it.
-NEON_DATABASE_URL = os.environ.get('NEON_DATABASE_URL', '').strip()
-if NEON_DATABASE_URL.startswith(('postgres://', 'postgresql://')):
+NEON_DATABASE_URL = os.environ.get("NEON_DATABASE_URL", "").strip()
+if NEON_DATABASE_URL.startswith(("postgres://", "postgresql://")):
     import dj_database_url
-    DATABASES['neon'] = dj_database_url.parse(NEON_DATABASE_URL, ssl_require=True)
+
+    DATABASES["neon"] = dj_database_url.parse(NEON_DATABASE_URL, ssl_require=True)
 
 if not DEBUG:
-    if SECRET_KEY == 'dev-only-change-this-before-deployment' or len(SECRET_KEY) < 50:
-        raise ImproperlyConfigured('Set a unique DJANGO_SECRET_KEY of at least 50 characters in production.')
-    if not os.environ.get('DJANGO_ALLOWED_HOSTS', '').strip():
-        raise ImproperlyConfigured('Set DJANGO_ALLOWED_HOSTS in production.')
-    if not DATABASE_URL.startswith(('postgres://', 'postgresql://')):
-        raise ImproperlyConfigured('Set DATABASE_URL to PostgreSQL in production; SQLite is for development only.')
+    if SECRET_KEY == "dev-only-change-this-before-deployment" or len(SECRET_KEY) < 50:
+        raise ImproperlyConfigured("Set a unique DJANGO_SECRET_KEY of at least 50 characters in production.")
+    if not os.environ.get("DJANGO_ALLOWED_HOSTS", "").strip():
+        raise ImproperlyConfigured("Set DJANGO_ALLOWED_HOSTS in production.")
+    if not DATABASE_URL.startswith(("postgres://", "postgresql://")):
+        raise ImproperlyConfigured("Set DATABASE_URL to PostgreSQL in production; SQLite is for development only.")
 
-REDIS_URL = os.environ.get('REDIS_URL', '').strip()
+REDIS_URL = os.environ.get("REDIS_URL", "").strip()
 if REDIS_URL:
-    CACHES = {'default': {'BACKEND': 'django.core.cache.backends.redis.RedisCache', 'LOCATION': REDIS_URL}}
+    CACHES = {"default": {"BACKEND": "django.core.cache.backends.redis.RedisCache", "LOCATION": REDIS_URL}}
 else:
     # Production without Redis: a database cache, so rate limits are shared by every worker.
-    CACHES = {'default': (
-        {'BACKEND': 'django.core.cache.backends.db.DatabaseCache', 'LOCATION': 'esicom_cache'} if not DEBUG
-        else {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'esicom-local-cache'}
-    )}
+    CACHES = {
+        "default": (
+            {"BACKEND": "django.core.cache.backends.db.DatabaseCache", "LOCATION": "esicom_cache"}
+            if not DEBUG
+            else {"BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": "esicom-local-cache"}
+        )
+    }
 
 if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
-    SESSION_COOKIE_SECURE = os.environ.get('DJANGO_SESSION_COOKIE_SECURE', 'true').lower() == 'true'
-    CSRF_COOKIE_SECURE = os.environ.get('DJANGO_CSRF_COOKIE_SECURE', 'true').lower() == 'true'
-    SECURE_SSL_REDIRECT = os.environ.get('DJANGO_SECURE_SSL_REDIRECT', 'true').lower() == 'true'
-    SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_SECURE_HSTS_SECONDS', '31536000'))
+    SESSION_COOKIE_SECURE = os.environ.get("DJANGO_SESSION_COOKIE_SECURE", "true").lower() == "true"
+    CSRF_COOKIE_SECURE = os.environ.get("DJANGO_CSRF_COOKIE_SECURE", "true").lower() == "true"
+    SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "true").lower() == "true"
+    SECURE_HSTS_SECONDS = int(os.environ.get("DJANGO_SECURE_HSTS_SECONDS", "31536000"))
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = os.environ.get('DJANGO_SECURE_HSTS_PRELOAD', 'false').lower() == 'true'
-    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_HSTS_PRELOAD = os.environ.get("DJANGO_SECURE_HSTS_PRELOAD", "false").lower() == "true"
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 AUTH_PASSWORD_VALIDATORS = [
-    {'NAME':'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME':'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME':'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME':'django.contrib.auth.password_validation.NumericPasswordValidator'},
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
-LANGUAGE_CODE = 'en-us'
-TIME_ZONE = 'Africa/Nairobi'
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "Africa/Nairobi"
 USE_I18N = True
 USE_TZ = True
-STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 STORAGES = {
-    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
-    'staticfiles': {
-        'BACKEND': (
-            'whitenoise.storage.CompressedManifestStaticFilesStorage'
-            if not DEBUG else 'django.contrib.staticfiles.storage.StaticFilesStorage'
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {
+        "BACKEND": (
+            "whitenoise.storage.CompressedManifestStaticFilesStorage"
+            if not DEBUG
+            else "django.contrib.staticfiles.storage.StaticFilesStorage"
         ),
     },
 }
-MEDIA_URL = '/media/'
-MEDIA_ROOT = Path(os.environ.get('DJANGO_MEDIA_ROOT', BASE_DIR / 'media')).expanduser()
+MEDIA_URL = "/media/"
+MEDIA_ROOT = Path(os.environ.get("DJANGO_MEDIA_ROOT", BASE_DIR / "media")).expanduser()
 DATA_UPLOAD_MAX_MEMORY_SIZE = 55 * 1024 * 1024
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-CORS_ALLOWED_ORIGINS = [u.strip() for u in os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:4174,http://127.0.0.1:4174').split(',') if u.strip()]
-EMAIL_BACKEND = os.environ.get('DJANGO_EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
-EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'true').lower() == 'true'
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+CORS_ALLOWED_ORIGINS = [
+    u.strip()
+    for u in os.environ.get(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:4174,http://127.0.0.1:4174",
+    ).split(",")
+    if u.strip()
+]
+EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = os.environ.get("EMAIL_USE_TLS", "true").lower() == "true"
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
 # Never let a slow or blocked mail server hang a request (Render's free plan blocks SMTP ports).
-EMAIL_TIMEOUT = int(os.environ.get('EMAIL_TIMEOUT', '10'))
+EMAIL_TIMEOUT = int(os.environ.get("EMAIL_TIMEOUT", "10"))
 # Gmail API over HTTPS (Render's free plan blocks SMTP). Used whenever all three are set.
-GMAIL_CLIENT_ID = os.environ.get('GMAIL_CLIENT_ID', '').strip()
-GMAIL_CLIENT_SECRET = os.environ.get('GMAIL_CLIENT_SECRET', '').strip()
-GMAIL_REFRESH_TOKEN = os.environ.get('GMAIL_REFRESH_TOKEN', '').strip()
-if GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN:
-    EMAIL_BACKEND = 'ledger.gmail_backend.GmailApiBackend'
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'website@localhost')
-ESICOM_ENQUIRY_EMAIL = os.environ.get('ESICOM_ENQUIRY_EMAIL', 'esicomsuppliers@gmail.com')
-ESICOM_PUBLIC_SITE_URL = os.environ.get('ESICOM_PUBLIC_SITE_URL', 'http://localhost:4173').rstrip('/')
-ESICOM_DASHBOARD_URL = os.environ.get('ESICOM_DASHBOARD_URL', 'http://localhost:5173').rstrip('/')
+GMAIL_CLIENT_ID = os.environ.get("GMAIL_CLIENT_ID", "").strip()
+GMAIL_CLIENT_SECRET = os.environ.get("GMAIL_CLIENT_SECRET", "").strip()
+GMAIL_REFRESH_TOKEN = os.environ.get("GMAIL_REFRESH_TOKEN", "").strip()
+# Brevo's HTTPS API (no domain ownership needed, unlike Gmail's OAuth app). Takes priority if both are set.
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY", "").strip()
+if BREVO_API_KEY:
+    EMAIL_BACKEND = "ledger.brevo_backend.BrevoApiBackend"
+elif GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET and GMAIL_REFRESH_TOKEN:
+    EMAIL_BACKEND = "ledger.gmail_backend.GmailApiBackend"
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "website@localhost")
+ESICOM_ENQUIRY_EMAIL = os.environ.get("ESICOM_ENQUIRY_EMAIL", "esicomsuppliers@gmail.com")
+ESICOM_PUBLIC_SITE_URL = os.environ.get("ESICOM_PUBLIC_SITE_URL", "http://localhost:4173").rstrip("/")
+ESICOM_DASHBOARD_URL = os.environ.get("ESICOM_DASHBOARD_URL", "http://localhost:5173").rstrip("/")
 ESICOM_EDITOR_PREVIEW_URL = os.environ.get(
-    'ESICOM_EDITOR_PREVIEW_URL',
-    ESICOM_PUBLIC_SITE_URL if not DEBUG else 'http://127.0.0.1:4174',
-).rstrip('/')
+    "ESICOM_EDITOR_PREVIEW_URL",
+    ESICOM_PUBLIC_SITE_URL if not DEBUG else "http://127.0.0.1:4174",
+).rstrip("/")
 SECURE_CONTENT_TYPE_NOSNIFF = True
-X_FRAME_OPTIONS = 'DENY'
+X_FRAME_OPTIONS = "DENY"
 
-if not DEBUG and not ESICOM_PUBLIC_SITE_URL.startswith('https://'):
-    raise ImproperlyConfigured('Set ESICOM_PUBLIC_SITE_URL to the public HTTPS website URL in production.')
+if not DEBUG and not ESICOM_PUBLIC_SITE_URL.startswith("https://"):
+    raise ImproperlyConfigured("Set ESICOM_PUBLIC_SITE_URL to the public HTTPS website URL in production.")
 
 
-CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o.strip()]
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o.strip()]
 for _url in (ESICOM_DASHBOARD_URL, ESICOM_PUBLIC_SITE_URL):
-    _origin = '{0.scheme}://{0.netloc}'.format(urlsplit(_url))  # CSRF compares origins, never paths
-    if _origin.startswith('https://') and _origin not in CSRF_TRUSTED_ORIGINS:
+    _origin = "{0.scheme}://{0.netloc}".format(urlsplit(_url))  # CSRF compares origins, never paths
+    if _origin.startswith("https://") and _origin not in CSRF_TRUSTED_ORIGINS:
         CSRF_TRUSTED_ORIGINS.append(_origin)
 
 # Ledger dashboard. It reaches this API through a Vercel rewrite (/ledger-api/* -> /api/ledger/*),
 # so the session cookie is first-party. Add the dashboard origin to DJANGO_CSRF_TRUSTED_ORIGINS.
 REST_FRAMEWORK = {
-    'DEFAULT_AUTHENTICATION_CLASSES': ['ledger.auth.LedgerSessionAuthentication'],
-    'DEFAULT_PERMISSION_CLASSES': ['ledger.auth.IsLedgerUser'],
-    'DEFAULT_RENDERER_CLASSES': ['rest_framework.renderers.JSONRenderer'],
-    'DEFAULT_PARSER_CLASSES': ['rest_framework.parsers.JSONParser'],
-    'UNAUTHENTICATED_USER': 'django.contrib.auth.models.AnonymousUser',
+    "DEFAULT_AUTHENTICATION_CLASSES": ["ledger.auth.LedgerSessionAuthentication"],
+    "DEFAULT_PERMISSION_CLASSES": ["ledger.auth.IsLedgerUser"],
+    "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
+    "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
+    "UNAUTHENTICATED_USER": "django.contrib.auth.models.AnonymousUser",
 }
 # Stay logged in until "Log out" (or "Log out everywhere"); 5 years is the practical maximum.
 SESSION_COOKIE_AGE = 5 * 365 * 24 * 3600
-SESSION_COOKIE_SAMESITE = 'Lax'
-LEDGER_RUN_DAILY_JOBS = os.environ.get('LEDGER_RUN_DAILY_JOBS', 'true').lower() == 'true'
+SESSION_COOKIE_SAMESITE = "Lax"
+LEDGER_RUN_DAILY_JOBS = os.environ.get("LEDGER_RUN_DAILY_JOBS", "true").lower() == "true"
 
-if os.environ.get('CLOUDINARY_URL'):
-    INSTALLED_APPS = list(INSTALLED_APPS) + ['cloudinary_storage', 'cloudinary']
+if os.environ.get("CLOUDINARY_URL"):
+    INSTALLED_APPS = list(INSTALLED_APPS) + ["cloudinary_storage", "cloudinary"]
